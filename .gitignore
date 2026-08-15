@@ -1,0 +1,13 @@
+.venv/
+.venv_tts/
+
+__pycache__/
+*.pyc
+
+.idea/
+
+micro_test.wav
+reponse_elise.wav
+test_elise.wav
+
+.env

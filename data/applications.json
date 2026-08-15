@@ -1,0 +1,17 @@
+{
+    "opera gx": {
+        "chemin": "C:\\Users\\Jonathan\\AppData\\Local\\Programs\\Opera GX\\opera.exe"
+    },
+    "discord": {
+        "chemin": "C:\\Users\\Jonathan\\AppData\\Local\\Discord\\Update.exe"
+    },
+    "vscode": {
+        "chemin": "C:\\Users\\Jonathan\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+    },
+    "pycharm": {
+        "chemin": "C:\\Program Files\\JetBrains\\PyCharm 2026.2.0.1\\bin\\pycharm64.exe"
+    },
+    "spotify": {
+        "chemin": "C:\\Program Files\\WindowsApps\\SpotifyAB.SpotifyMusic_1.295.453.0_x64__zpdnekdrzrea0\\spotify.exe"
+    }
+}
