@@ -1,34 +1,111 @@
-from module import function
-from module import tache
-from module import applications
+from queue import Queue
+from threading import Thread
+
+from core.elise import Elise
+from interfaces.stt import STT
+from interfaces.tts_client import TTSClient
+from module.applications import lancer_application_locale
+from module.tache import (
+    outil_ajouter_tache,
+    outil_lister_taches,
+    outil_modifier_statut,
+    outil_supprimer_tache,
+)
 
 
+file_tts = Queue()
+file_audio = Queue()
 
-def interface_elise():
-    commandes={"tache":tache.interface_tache, "applications":applications.interface_application}
-    profil=function.charger_donnees("data/profil.json", {})
-    if "prenom" not in profil:
-        prenom = input("Quel est votre nom?\n")
-        profil["prenom"] = prenom
-        function.sauvegarder_donnees("data/profil.json", profil)
-    else:
-        prenom = profil["prenom"]
+tts = TTSClient()
+
+
+def worker_generation():
     while True:
-        print(f"Bonjour {prenom}.\n")
-        for commande in commandes:
-            print(commande)
-        print("quitter\n")
-        reponse=function.normalisation_choix(input('Que souhaites-tu faire?\n'))
-        if reponse == "quitter":
+        phrase = file_tts.get()
+
+        if phrase is None:
+            file_tts.task_done()
+            file_audio.put(None)
             break
-        elif reponse in commandes:
-            commandes[reponse](prenom)
-        else:
-            print("Réponse invalide\n")
+
+        try:
+            audio_wav = tts.generer(phrase)
+            file_audio.put(audio_wav)
+
+        except Exception as erreur:
+            print(f"[TTS] Erreur de génération : {erreur}")
+
+        finally:
+            file_tts.task_done()
 
 
-interface_elise()
+def worker_lecture():
+    while True:
+        audio_wav = file_audio.get()
+
+        if audio_wav is None:
+            file_audio.task_done()
+            break
+
+        try:
+            tts.jouer(audio_wav)
+
+        except Exception as erreur:
+            print(f"[TTS] Erreur de lecture : {erreur}")
+
+        finally:
+            file_audio.task_done()
 
 
+def envoyer_au_tts(phrase):
+    file_tts.put(phrase)
 
 
+def main():
+    thread_generation = Thread(
+        target=worker_generation,
+        daemon=True,
+    )
+
+    thread_lecture = Thread(
+        target=worker_lecture,
+        daemon=True,
+    )
+
+    thread_generation.start()
+    thread_lecture.start()
+
+    assistant = Elise(
+        "qwen3:8b",
+        [
+            lancer_application_locale,
+            outil_ajouter_tache,
+            outil_lister_taches,
+            outil_modifier_statut,
+            outil_supprimer_tache,
+        ],
+    )
+
+    reconnaissance_vocale = STT()
+
+    while True:
+        print("Écoute...")
+
+        message = reconnaissance_vocale.ecouter()
+        print("Vous :", message)
+
+        commande = message.lower().strip()
+
+        if "arrête-toi" in commande or "arrête toi" in commande:
+            print("Arrêt d'Élise.")
+            file_tts.put(None)
+            break
+
+        assistant.repondre(
+            message,
+            callback=envoyer_au_tts,
+        )
+
+
+if __name__ == "__main__":
+    main()

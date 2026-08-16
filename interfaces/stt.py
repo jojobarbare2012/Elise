@@ -3,7 +3,6 @@ import sounddevice as sd
 from scipy.io.wavfile import write
 import numpy as np
 from collections import deque
-import time
 from silero_vad import load_silero_vad
 import torch
 
@@ -30,7 +29,6 @@ class STT:
         a_commence = False
         silence = 0.0
         blocs_voix = 0
-        debut_capture = time.perf_counter()
         with sd.InputStream(
                 samplerate=self.frequence,
                 channels=1,
@@ -38,7 +36,7 @@ class STT:
         ) as stream:
 
             while True:
-                bloc, overflowed = stream.read(self.taille_bloc)
+                bloc, _ = stream.read(self.taille_bloc)
                 bloc_tensor = torch.from_numpy(bloc.squeeze())
 
                 probabilite_voix = self.vad_model(bloc_tensor, self.frequence).item()
@@ -65,26 +63,20 @@ class STT:
 
                     if silence >= self.duree_silence:
                         break
-        fin_capture = time.perf_counter()
 
-        #print(f"Capture audio : {fin_capture - debut_capture:.2f} s")
         audio = np.concatenate(audio_enregistre, axis=0)
 
-        write("micro_test.wav", self.frequence, audio)
-        debut_whisper = time.perf_counter()
-        segments, info = self.model.transcribe(
-            "micro_test.wav",
+        write("data/temp/micro_capture.wav", self.frequence, audio)
+        segments, _ = self.model.transcribe(
+            "data/temp/micro_capture.wav",
             language="fr",
             beam_size=5,
             vad_filter=True,
             condition_on_previous_text=False,
             hotwords="Élise Jonathan tâches priorité statut applications VS Code biochimie"
         )
-
         texte = ""
         for segment in segments:
             texte += segment.text + " "
-        fin_whisper = time.perf_counter()
-        #print(f"Whisper seul : {fin_whisper - debut_whisper:.2f} s")
         return texte.strip()
 

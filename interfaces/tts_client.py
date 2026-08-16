@@ -7,8 +7,8 @@ from scipy.io.wavfile import read
 
 
 class TTSClient:
-    def __init__(self):
-        self.url = "http://localhost:8080/tts"
+    def __init__(self, url="http://localhost:8080/tts"):
+        self.url = url
 
     def generer(self, texte):
         donnees = json.dumps({
@@ -24,16 +24,14 @@ class TTSClient:
             method="POST"
         )
 
-        with urllib.request.urlopen(requete, timeout=60) as reponse:
-            audio_wav = reponse.read()
-            with open("debug_tts.wav", "wb") as f:
-                f.write(audio_wav)
-
-        return audio_wav
+        with urllib.request.urlopen(
+            requete,
+            timeout=60
+        ) as reponse:
+            return reponse.read()
 
     def jouer(self, audio_wav):
         fichier_audio = io.BytesIO(audio_wav)
-
         frequence, audio = read(fichier_audio)
 
         sd.play(audio, frequence)

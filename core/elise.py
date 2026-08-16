@@ -26,10 +26,12 @@ def extraire_phrases(buffer):
     reste = buffer[debut:]
 
     return phrases, reste
+
+
 class Elise:
     def __init__(self,model,outils):
         self.model = model
-        self.system_prompt = {"role":"system",
+        self.conversation = [{"role":"system",
                               "content": """Tu te nommes Élise, tu es l'assistante personnelle de Jonathan, l'humain à qui tu parles en ce moment.
                                 Ta langue de communication est le français par défaut.
                                 Tu devez être concise et utile. Pas d'émoji dans les réponses.
@@ -38,14 +40,14 @@ class Elise:
                                 Ne cite jamais une tâche absente du résultat actuel de l’outil de liste des tâches.
                                 N'effectue aucune action et n'appelle aucun outil impliquant une action ou une modification sans demande explicite de l'utilisateur.
                                 Ne réalise pas d'action supplémentaire que l'utilisateur n'a pas demandée.
-                                Après une action, indique simplement son résultat, sans effectuer d'autres opérations sauf si elles sont nécessaires pour accomplir la demande."""}
-        self.conversation = [self.system_prompt]
+                                Après une action, indique simplement son résultat, sans effectuer d'autres opérations sauf si elles sont nécessaires pour accomplir la demande."""}]
         self.outils = outils
-        self.outils_disponibles = {}
-        for outil in self.outils:
-            self.outils_disponibles[outil.__name__] = outil
+        self.outils_disponibles = {
+            outil.__name__: outil
+            for outil in outils
+        }
 
-    def traiter_stream(self, stream, callback=None):
+    def _traiter_stream(self, stream, callback=None):
         texte_complet = ""
         buffer_phrase = ""
         tool_calls = []
@@ -74,6 +76,17 @@ class Elise:
 
         return texte_complet, tool_calls
 
+    def _executer_outils(self, tool_calls):
+        for call in tool_calls:
+            fonction_cible = self.outils_disponibles.get(call.function.name)
+            if fonction_cible:
+                resultat = fonction_cible(**call.function.arguments)
+                self.conversation.append({
+                        'role': 'tool',
+                        'tool_name': call.function.name,
+                        'content': str(resultat)
+                })
+
     def repondre(self,message,callback=None):
         self.conversation.append({'role': 'user', 'content': message})
         stream = ollama.chat(
@@ -83,7 +96,7 @@ class Elise:
             stream=True
         )
 
-        texte_complet, tool_calls = self.traiter_stream(
+        texte_complet, tool_calls = self._traiter_stream(
             stream,
             callback
         )
@@ -96,21 +109,14 @@ class Elise:
             message_assistant["tool_calls"] = tool_calls
 
         self.conversation.append(message_assistant)
+
         if tool_calls:
-            for call in tool_calls:
-                fonction_cible = self.outils_disponibles.get(call.function.name)
-                if fonction_cible:
-                    resultat = fonction_cible(**call.function.arguments)
-                    self.conversation.append({
-                        'role': 'tool',
-                        'tool_name': call.function.name,
-                        'content': str(resultat)
-                    })
+            self._executer_outils(tool_calls)
             stream_final = ollama.chat(
                               model=self.model,
                               messages=self.conversation,
                               stream=True)
-            texte_final, _ = self.traiter_stream(
+            texte_final, _ = self._traiter_stream(
                 stream_final,
                 callback
             )

@@ -1,38 +1,6 @@
 from . import function
 import difflib
 
-def interface_tache(prenom):
-    commandes = {"ajouter": ajouter, "afficher": montrer, "supprimer": supprimer,
-                 "statut":interface_modif_statut}
-    liste_tache = function.charger_donnees("data/liste_tache.json", [])
-    while True:
-        print("\n\nBonjour "+ prenom +"\nBienvenue dans votre gestionnaire de tâche.\n\n")
-        for commande in commandes:
-            print(commande.capitalize()+"\n")
-        print("retour\n")
-        reponse=function.normalisation_choix(input("Veuillez saisir votre commande en fonction de vos besoins : \n"))
-        if reponse== "retour":
-            break
-        elif reponse in commandes:
-            a_modifie=commandes[reponse](liste_tache)
-            if a_modifie:
-                function.sauvegarder_donnees("data/liste_tache.json", liste_tache)
-        else:
-            print("Réponse invalide\n")
-
-def trouver_tache(nom_recherche, liste_tache):
-    nom_normalisation = function.normalisation_choix(nom_recherche)
-    liste_tache_normaliser=[]
-    for tache in liste_tache:
-        tache_normalisation = function.normalisation_choix(tache["nom_tache"])
-        liste_tache_normaliser.append(tache_normalisation)
-        if tache_normalisation == nom_normalisation:
-            return tache
-    correspondance=difflib.get_close_matches(nom_normalisation,liste_tache_normaliser, n=1, cutoff=0.9)
-    if correspondance != []:
-        indice_tache=liste_tache_normaliser.index(correspondance[0])
-        return liste_tache[indice_tache]
-    return None
 
 def outil_ajouter_tache(nom_tache: str, priorite: int) -> str:
     """
@@ -123,13 +91,22 @@ def outil_supprimer_tache(nom_tache: str) -> str:
 
 
 def ajouter(liste_tache, intitule, priorite):
-    statut_initial = "non commencé"
-    priorite_converti = function.conversion_en_entier(priorite)
-    if priorite_converti is not None and priorite_converti in range(1,11):
-        liste_tache.append({"nom_tache":intitule, "priorite":priorite_converti, "statut":statut_initial})
-        return True
-    else:
+    priorite_convertie = function.conversion_en_entier(priorite)
+
+    if priorite_convertie is None:
         return False
+
+    if priorite_convertie not in range(1, 11):
+        return False
+
+    liste_tache.append({
+        "nom_tache": intitule,
+        "priorite": priorite_convertie,
+        "statut": "non commencé",
+    })
+
+    return True
+
 
 def montrer( liste_tache):
     taches=[]
@@ -142,30 +119,38 @@ def supprimer( liste_tache, nom_tache):
     tache=trouver_tache(nom_tache, liste_tache)
     if tache is None:
         return False
-    else:
-        liste_tache.remove(tache)
-        return True
-
-
-def interface_modif_statut(liste_tache):
-    tache_indice=function.conversion_en_entier(input("Veuillez saisir le numéro de la tâche dont vous voulez modifier le statut:\n"))
-    if tache_indice is None:
-        print("Valeur invalide")
-        return False
-    if tache_indice not in range(1,len(liste_tache)+1):
-        print("Nombre invalide")
-        return False
-    nouveau_statut = function.normalisation_choix(input("Veuillez saisir le nouveau statut:\n"))
-    if not verification_statut(nouveau_statut):
-        print("Statut invalide")
-        return False
-    modifier_statut(nouveau_statut,liste_tache[tache_indice - 1])
+    liste_tache.remove(tache)
     return True
 
 
+def trouver_tache(nom_recherche, liste_tache):
+    nom_normalise = function.normalisation_choix(nom_recherche)
+    noms_normalises = []
+
+    for tache in liste_tache:
+        nom_tache = function.normalisation_choix(tache["nom_tache"])
+        noms_normalises.append(nom_tache)
+
+        if nom_tache == nom_normalise:
+            return tache
+
+    correspondances = difflib.get_close_matches(
+        nom_normalise,
+        noms_normalises,
+        n=1,
+        cutoff=0.9,
+    )
+
+    if correspondances:
+        indice = noms_normalises.index(correspondances[0])
+        return liste_tache[indice]
+
+    return None
+
+
 def verification_statut(nouveau_statut):
-    statut_possible=["non commencé","en cours"]
-    return nouveau_statut in statut_possible
+    STATUTS_POSSIBLES = {"non commencé", "en cours"}
+    return nouveau_statut in STATUTS_POSSIBLES
 
 def modifier_statut(nouveau_statut, tache_modifie):
     tache_modifie["statut"] = nouveau_statut
