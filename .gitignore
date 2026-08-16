@@ -1,5 +1,6 @@
 .venv/
 .venv_tts/
+.venv_xtts/
 
 __pycache__/
 *.pyc
@@ -9,5 +10,11 @@ __pycache__/
 micro_test.wav
 reponse_elise.wav
 test_elise.wav
+debug_tts.wav
+test_f5.wav
+test_fish.wav
+tests/infer_cli_basic.wav
+data/liste_tache.json
 
 .env
+

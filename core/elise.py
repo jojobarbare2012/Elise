@@ -1,5 +1,31 @@
 import ollama
 
+def extraire_phrases(buffer):
+    phrases = []
+    debut = 0
+
+    for i, caractere in enumerate(buffer):
+        est_fin_phrase = caractere in "!?\n"
+
+        if caractere == ".":
+            avant = buffer[i - 1] if i > 0 else ""
+
+            # Si le point suit un chiffre, on considère que ça peut être
+            # un numéro de liste et on ne coupe pas dessus.
+            if not avant.isdigit():
+                est_fin_phrase = True
+
+        if est_fin_phrase:
+            phrase = buffer[debut:i + 1].strip()
+
+            if phrase:
+                phrases.append(phrase)
+
+            debut = i + 1
+
+    reste = buffer[debut:]
+
+    return phrases, reste
 class Elise:
     def __init__(self,model,outils):
         self.model = model
@@ -19,14 +45,59 @@ class Elise:
         for outil in self.outils:
             self.outils_disponibles[outil.__name__] = outil
 
-    def repondre(self,message):
+    def traiter_stream(self, stream, callback=None):
+        texte_complet = ""
+        buffer_phrase = ""
+        tool_calls = []
+
+        for chunk in stream:
+            morceau = chunk.message.content or ""
+
+            texte_complet += morceau
+            buffer_phrase += morceau
+
+            phrases, buffer_phrase = extraire_phrases(buffer_phrase)
+
+            for phrase in phrases:
+                if callback:
+                    callback(phrase)
+
+            if chunk.message.tool_calls:
+                tool_calls.extend(chunk.message.tool_calls)
+
+            print(morceau, end="", flush=True)
+
+        if buffer_phrase.strip() and callback:
+            callback(buffer_phrase.strip())
+
+        print()
+
+        return texte_complet, tool_calls
+
+    def repondre(self,message,callback=None):
         self.conversation.append({'role': 'user', 'content': message})
-        response = ollama.chat(model=self.model,
-                               messages=self.conversation,
-                               tools=self.outils)
-        self.conversation.append(response.message)
-        if response.message.tool_calls:
-            for call in response.message.tool_calls:
+        stream = ollama.chat(
+            model=self.model,
+            messages=self.conversation,
+            tools=self.outils,
+            stream=True
+        )
+
+        texte_complet, tool_calls = self.traiter_stream(
+            stream,
+            callback
+        )
+        message_assistant = {
+            "role": "assistant",
+            "content": texte_complet
+        }
+
+        if tool_calls:
+            message_assistant["tool_calls"] = tool_calls
+
+        self.conversation.append(message_assistant)
+        if tool_calls:
+            for call in tool_calls:
                 fonction_cible = self.outils_disponibles.get(call.function.name)
                 if fonction_cible:
                     resultat = fonction_cible(**call.function.arguments)
@@ -35,8 +106,18 @@ class Elise:
                         'tool_name': call.function.name,
                         'content': str(resultat)
                     })
-            response_finale = ollama.chat(model=self.model, messages=self.conversation)
-            self.conversation.append(response_finale.message)
-            return response_finale.message.content
-        else:
-            return response.message.content
+            stream_final = ollama.chat(
+                              model=self.model,
+                              messages=self.conversation,
+                              stream=True)
+            texte_final, _ = self.traiter_stream(
+                stream_final,
+                callback
+            )
+            self.conversation.append({
+                "role": "assistant",
+                "content": texte_final
+            })
+
+            return texte_final
+        return texte_complet
