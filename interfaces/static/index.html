@@ -4,24 +4,31 @@
 <head>
     <meta charset="UTF-8">
     <title>Élise</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
     <main>
+        <header id="header">
+            <div>
+                <h1>ÉLISE</h1>
+                <p>Assistante locale</p>
+            </div>
+
+            <div id="status">
+                <span class="status-dot"></span>
+                <span>En ligne</span>
+            </div>
+        </header>
         <div id="conversation">
         </div>
 
         <div>
-            <input
-                id="message"
-                type="text"
-                placeholder="Écrire à Élise..."
-            >
-
-            <button id="envoyer">
-                Envoyer
-            </button>
+            <div id="zone-saisie">
+                <input id="message" type="text" placeholder="Écrire à Élise...">
+                <button id="envoyer">Envoyer</button>
+            </div>
         </div>
     </main>
 

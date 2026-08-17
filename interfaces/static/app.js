@@ -5,9 +5,15 @@ const boutonEnvoyer = document.getElementById("envoyer");
 function ajouterMessage(auteur, texte) {
     const message = document.createElement("div");
 
-    message.textContent = `${auteur} : ${texte}`;
+    message.classList.add("message");
+    message.classList.add(
+        auteur === "Vous" ? "user" : "elise"
+    );
 
+    message.textContent = texte;
     conversation.appendChild(message);
+
+    return message;
 }
 
 async function envoyerMessage() {
@@ -50,6 +56,7 @@ async function envoyerMessage() {
         );
 
         messageElise.textContent += morceau;
+        conversation.scrollTop = conversation.scrollHeight;
     }
 }
 
