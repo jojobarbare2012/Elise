@@ -47,13 +47,16 @@ class Elise:
             for outil in outils
         }
 
-    def _traiter_stream(self, stream, callback=None):
+    def _traiter_stream(self, stream, callback=None,callback_stream=None):
         texte_complet = ""
         buffer_phrase = ""
         tool_calls = []
 
         for chunk in stream:
             morceau = chunk.message.content or ""
+
+            if callback_stream and morceau:
+                callback_stream(morceau)
 
             texte_complet += morceau
             buffer_phrase += morceau
@@ -87,7 +90,7 @@ class Elise:
                         'content': str(resultat)
                 })
 
-    def repondre(self,message,callback=None):
+    def repondre(self,message,callback=None,callback_stream=None):
         self.conversation.append({'role': 'user', 'content': message})
         stream = ollama.chat(
             model=self.model,
@@ -98,7 +101,8 @@ class Elise:
 
         texte_complet, tool_calls = self._traiter_stream(
             stream,
-            callback
+            callback,
+            callback_stream
         )
         message_assistant = {
             "role": "assistant",
@@ -118,7 +122,8 @@ class Elise:
                               stream=True)
             texte_final, _ = self._traiter_stream(
                 stream_final,
-                callback
+                callback,
+                callback_stream
             )
             self.conversation.append({
                 "role": "assistant",
