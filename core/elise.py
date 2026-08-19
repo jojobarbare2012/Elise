@@ -1,4 +1,7 @@
 import ollama
+from .etat import EtatElise
+
+
 
 def extraire_phrases(buffer):
     phrases = []
@@ -46,6 +49,7 @@ class Elise:
             outil.__name__: outil
             for outil in outils
         }
+        self.etat = EtatElise()
 
     def _traiter_stream(self, stream, callback=None,callback_stream=None):
         texte_complet = ""
@@ -90,45 +94,52 @@ class Elise:
                         'content': str(resultat)
                 })
 
-    def repondre(self,message,callback=None,callback_stream=None):
+    def repondre(self,message,callback=None,callback_stream=None, callback_fin=None):
         self.conversation.append({'role': 'user', 'content': message})
-        stream = ollama.chat(
-            model=self.model,
-            messages=self.conversation,
-            tools=self.outils,
-            stream=True
-        )
+        self.etat.changer("THINKING")
+        try:
+            stream = ollama.chat(
+                model=self.model,
+                messages=self.conversation,
+                tools=self.outils,
+                stream=True
+            )
 
-        texte_complet, tool_calls = self._traiter_stream(
-            stream,
-            callback,
-            callback_stream
-        )
-        message_assistant = {
-            "role": "assistant",
-            "content": texte_complet
-        }
-
-        if tool_calls:
-            message_assistant["tool_calls"] = tool_calls
-
-        self.conversation.append(message_assistant)
-
-        if tool_calls:
-            self._executer_outils(tool_calls)
-            stream_final = ollama.chat(
-                              model=self.model,
-                              messages=self.conversation,
-                              stream=True)
-            texte_final, _ = self._traiter_stream(
-                stream_final,
+            texte_complet, tool_calls = self._traiter_stream(
+                stream,
                 callback,
                 callback_stream
             )
-            self.conversation.append({
+            message_assistant = {
                 "role": "assistant",
-                "content": texte_final
-            })
+                "content": texte_complet
+            }
 
-            return texte_final
-        return texte_complet
+            if tool_calls:
+                message_assistant["tool_calls"] = tool_calls
+
+            self.conversation.append(message_assistant)
+
+            if tool_calls:
+                self._executer_outils(tool_calls)
+                stream_final = ollama.chat(
+                              model=self.model,
+                              messages=self.conversation,
+                              stream=True)
+                texte_final, _ = self._traiter_stream(
+                    stream_final,
+                    callback,
+                    callback_stream
+                )
+                self.conversation.append({
+                    "role": "assistant",
+                    "content": texte_final
+                })
+                if callback_fin:
+                    callback_fin()
+                return texte_final
+            if callback_fin:
+                callback_fin()
+            return texte_complet
+        finally:
+            self.etat.changer("IDLE")

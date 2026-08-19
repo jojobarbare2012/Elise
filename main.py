@@ -57,8 +57,6 @@ def worker_lecture():
             file_audio.task_done()
 
 
-def envoyer_au_tts(phrase):
-    file_tts.put(phrase)
 
 
 def main():
