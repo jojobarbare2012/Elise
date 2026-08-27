@@ -1,6 +1,6 @@
 import ollama
 from .etat import EtatElise
-
+import time
 
 
 def extraire_phrases(buffer):
@@ -50,14 +50,22 @@ class Elise:
             for outil in outils
         }
         self.etat = EtatElise()
+        # dans Elise.__init__
+        self.debut_reponse = None
 
-    def _traiter_stream(self, stream, callback=None,callback_stream=None):
+    def _traiter_stream(self, stream, callback=None,callback_stream=None,debut_reponse=None):
+        premier_chunk_recu = False
         texte_complet = ""
         buffer_phrase = ""
         tool_calls = []
 
         for chunk in stream:
             morceau = chunk.message.content or ""
+            if morceau and not premier_chunk_recu:
+                premier_chunk_recu = True
+                if debut_reponse is not None:
+                    delai = time.perf_counter() - debut_reponse
+                    print(f"[PERF] Premier chunk LLM : {delai:.3f}s")
 
             if callback_stream and morceau:
                 callback_stream(morceau)
@@ -98,6 +106,8 @@ class Elise:
         self.conversation.append({'role': 'user', 'content': message})
         self.etat.changer("THINKING")
         try:
+            self.debut_reponse = time.perf_counter()
+            print("[PERF] Début reponse")
             stream = ollama.chat(
                 model=self.model,
                 messages=self.conversation,
@@ -108,7 +118,8 @@ class Elise:
             texte_complet, tool_calls = self._traiter_stream(
                 stream,
                 callback,
-                callback_stream
+                callback_stream,
+                self.debut_reponse
             )
             message_assistant = {
                 "role": "assistant",
@@ -129,7 +140,8 @@ class Elise:
                 texte_final, _ = self._traiter_stream(
                     stream_final,
                     callback,
-                    callback_stream
+                    callback_stream,
+                    self.debut_reponse
                 )
                 self.conversation.append({
                     "role": "assistant",

@@ -17,6 +17,7 @@ import asyncio
 from interfaces.tts_client import TTSClient
 from fastapi import WebSocket, WebSocketDisconnect
 import re
+import time
 
 EMOJI_PATTERN = re.compile(
     "["
@@ -34,8 +35,9 @@ EMOJI_PATTERN = re.compile(
     flags=re.UNICODE,
 )
 
+print("[WEB INIT] avant STT", flush=True)
 stt = STT()
-
+print("[WEB INIT] après STT", flush=True)
 
 app = FastAPI()
 app.mount(
@@ -44,6 +46,8 @@ app.mount(
     name="static",
 )
 
+
+print("[WEB INIT] avant Elise", flush=True)
 
 assistant = Elise(
     "qwen3:8b",
@@ -56,6 +60,7 @@ assistant = Elise(
     ],
 )
 
+print("[WEB INIT] après Elise", flush=True)
 
 
 vocal_event = Event()
@@ -63,9 +68,9 @@ vocal_event = Event()
 
 file_tts = Queue()
 file_audio = Queue()
-
+print("[WEB INIT] avant TTS", flush=True)
 tts = TTSClient()
-
+print("[WEB INIT] après TTS", flush=True)
 websocket_actif = None
 boucle_asyncio = None
 
@@ -209,15 +214,22 @@ def nettoyer_pour_tts(texte):
     return texte.strip()
 
 def envoyer_au_tts(phrase):
+    print("[DEBUG callback TTS] phrase =", repr(phrase))
     bloc = buffer_tts.ajouter(phrase)
-
     if bloc:
+        print("[DEBUG callback TTS] ENQUEUE =", repr(bloc))
+        if assistant.debut_reponse is not None:
+            delai = time.perf_counter() - assistant.debut_reponse
+            print(f"[PERF] Premier bloc TTS prêt : {delai:.3f}s")
+
         file_tts.put(bloc)
 
 def vider_buffer_tts():
+    print("[DEBUG flush TTS]")
     bloc = buffer_tts.flush()
 
     if bloc:
+        print("[DEBUG flush TTS] ENQUEUE =", repr(bloc))
         file_tts.put(bloc)
 
 def worker_generation():
@@ -246,6 +258,9 @@ def worker_lecture():
 
         try:
             assistant.etat.changer("SPEAKING")
+            if assistant.debut_reponse is not None:
+                delai = time.perf_counter() - assistant.debut_reponse
+                print(f"[PERF] Début lecture audio : {delai:.3f}s")
             tts.jouer(audio_wav)
             print("[LECTURE] terminé")
 
@@ -308,3 +323,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
         if websocket_actif is websocket:
             websocket_actif = None
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

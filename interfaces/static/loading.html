@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Élise</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #0d0d0d;
+            color: #d8d8d8;
+            font-family: Consolas, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .console {
+            width: 520px;
+            padding: 30px;
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            background: #111;
+        }
+
+        h1 {
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-size: 22px;
+            font-weight: normal;
+        }
+
+        .service {
+            margin: 10px 0;
+        }
+
+        .waiting {
+            color: #777;
+        }
+
+        .loading {
+            color: #d4b85f;
+        }
+
+        .ready {
+            color: #72c279;
+        }
+
+        .error {
+            color: #d86666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="console">
+        <h1>&gt; Démarrage d'Élise</h1>
+
+        <p id="fish" class="service waiting">Fish Speech : WAITING</p>
+        <p id="ollama" class="service waiting">Ollama : WAITING</p>
+        <p id="qwen" class="service waiting">Qwen : WAITING</p>
+        <p id="web" class="service waiting">Serveur Élise : WAITING</p>
+    </div>
+
+    <script>
+        const noms = {
+            fish: "Fish Speech",
+            ollama: "Ollama",
+            qwen: "Qwen",
+            web: "Serveur Élise"
+        };
+
+        window.__TAURI__.event.listen("setup-status", (evenement) => {
+
+            const [service, statut] = evenement.payload.split(" ");
+
+            const ligne = document.getElementById(service);
+
+            if (!ligne) {
+                return;
+            }
+
+            ligne.classList.remove(
+                "waiting",
+                "loading",
+                "ready",
+                "error"
+            );
+
+            ligne.classList.add(statut.toLowerCase());
+
+            ligne.textContent = `${noms[service]} : ${statut}`;
+
+            if (service === "web" && statut === "READY") {
+                setTimeout(() => {
+                    window.location.href = "http://127.0.0.1:8000/";
+                }, 800);
+            }
+        });
+    </script>
+
+</body>
+</html>
