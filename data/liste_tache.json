@@ -13,5 +13,15 @@
     "nom_tache": "cuisiner du butter chicken",
     "priorite": 2,
     "statut": "non commencé"
+  },
+  {
+    "nom_tache": "Écrire une fonction Python pour additionner deux nombres",
+    "priorite": 5,
+    "statut": "non commencé"
+  },
+  {
+    "nom_tache": "préparation du cahier des charges du projet LANCE-TOILE",
+    "priorite": 7,
+    "statut": "non commencé"
   }
 ]

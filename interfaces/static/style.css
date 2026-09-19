@@ -1,65 +1,64 @@
+/* ==========================================================================
+   ÉLISE — INTERFACE PRINCIPALE
+   --------------------------------------------------------------------------
+   Feuille de style de l'interface de conversation d'Élise.
+
+   Organisation :
+   1. Base globale
+   2. Conteneur principal
+   3. En-tête et statut
+   4. Zone de conversation
+   5. Messages utilisateur
+   6. Réponses Markdown d'Élise
+   7. Listes et typographie Markdown
+   8. Code inline et blocs de code
+   9. Zone de saisie
+   10. Champ texte
+   11. Bouton d'envoi
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1. BASE GLOBALE
+   ========================================================================== */
+
+/*
+ * Style général de l'application.
+ * On utilise une interface sombre et une couleur de texte claire.
+ */
 body {
     margin: 0;
+
     font-family: Arial, sans-serif;
+
     background: #111;
     color: #f5f5f5;
 }
 
+
+/* ==========================================================================
+   2. CONTENEUR PRINCIPAL
+   ========================================================================== */
+
+/*
+ * Centre l'application et organise verticalement :
+ * header -> conversation -> zone de saisie.
+ */
 main {
     max-width: 900px;
+    height: 100vh;
+    min-height: 0;
+
     margin: 0 auto;
-    min-height: 100vh;
+
     display: flex;
     flex-direction: column;
 }
 
-#conversation {
-    flex: 1;
-    padding: 32px 20px 100px;
-}
 
-.message {
-    margin-bottom: 16px;
-    padding: 12px 16px;
-    border-radius: 12px;
-    max-width: 75%;
-    line-height: 1.4;
-}
-
-.user {
-    margin-left: auto;
-    background: #2a2a2a;
-}
-
-.elise {
-    margin-right: auto;
-    background: #1d1d1d;
-}
-
-#zone-saisie {
-    position: sticky;
-    bottom: 0;
-    display: flex;
-    gap: 10px;
-    padding: 16px 20px;
-    background: #111;
-}
-
-#message {
-    flex: 1;
-    padding: 12px 14px;
-    border-radius: 10px;
-    border: 1px solid #444;
-    background: #1a1a1a;
-    color: white;
-}
-
-#envoyer {
-    padding: 12px 18px;
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-}
+/* ==========================================================================
+   3. EN-TÊTE ET STATUT
+   ========================================================================== */
 
 #header {
     display: flex;
@@ -69,63 +68,302 @@ main {
     padding: 24px 20px 12px;
 }
 
+
+/*
+ * Logo texte "ÉLISE".
+ */
 #header h1 {
     margin: 0;
+
     font-size: 20px;
-    letter-spacing: 4px;
     font-weight: 600;
+    letter-spacing: 4px;
 }
 
+
+/*
+ * Sous-titre "Assistante locale".
+ */
 #header p {
     margin: 4px 0 0;
+
     font-size: 12px;
+
     color: #777;
 }
 
+
+/*
+ * Conteneur de l'état actuel d'Élise.
+ */
 #status {
     display: flex;
     align-items: center;
     gap: 8px;
 
     font-size: 12px;
+
     color: #888;
 }
 
+
+/*
+ * Petit indicateur visuel affiché à côté de l'état.
+ */
 .status-dot {
     width: 8px;
     height: 8px;
 
     border-radius: 50%;
+
     background: #6adf8b;
 }
 
-.message {
-    max-width: 70%;
-    padding: 12px 16px;
-    margin-bottom: 14px;
 
-    line-height: 1.5;
-    border-radius: 16px;
+/* ==========================================================================
+   4. ZONE DE CONVERSATION
+   ========================================================================== */
 
-    word-wrap: break-word;
+/*
+ * Occupe tout l'espace disponible entre le header et la zone de saisie.
+ *
+ * Le padding inférieur évite que les derniers messages soient masqués
+ * par la zone de saisie sticky.
+ */
+#conversation {
+    flex: 1;
+
+    padding: 32px 20px 100px;
+
+    overflow-y: auto;
+    /* Firefox */
+    scrollbar-width: none;
+}
+/* Chrome / Edge / WebView2 / Tauri */
+#conversation::-webkit-scrollbar {
+    display: none;
 }
 
-.user {
+/*
+ * Style commun à tous les messages.
+ */
+.message {
+    max-width: 70%;
+
+    margin-bottom: 14px;
+    padding: 12px 16px;
+
+    line-height: 1.5;
+
+    border-radius: 16px;
+
+    overflow-wrap: break-word;
+}
+
+
+/* ==========================================================================
+   5. MESSAGES UTILISATEUR
+   ========================================================================== */
+
+/*
+ * Messages envoyés par l'utilisateur.
+ * Alignés à droite avec une bulle sombre.
+ */
+.message.user {
     margin-left: auto;
 
     background: #262626;
+
     border-bottom-right-radius: 5px;
 }
 
-.elise {
-    margin-right: auto;
 
-    background: transparent;
+/* ==========================================================================
+   6. RÉPONSES D'ÉLISE
+   ========================================================================== */
+
+/*
+ * Les réponses d'Élise restent ouvertes, sans grosse bulle.
+ *
+ * Marked transforme le Markdown en HTML à l'intérieur de cet élément.
+ * Les règles suivantes servent donc aussi de base au rendu Markdown.
+ */
+.message.elise {
+    margin-right: auto;
     padding-left: 0;
 
+    line-height: 1.55;
+
+    background: transparent;
     color: #e8e8e8;
+
+    white-space: normal;
 }
 
+
+/* ==========================================================================
+   7. TYPOGRAPHIE ET MARKDOWN
+   ========================================================================== */
+
+/*
+ * Paragraphes générés par Marked.
+ */
+.message.elise p {
+    margin: 0 0 0.75rem;
+}
+
+
+/*
+ * Évite un espace inutile après le dernier paragraphe.
+ */
+.message.elise p:last-child {
+    margin-bottom: 0;
+}
+
+
+/*
+ * Listes à puces et listes numérotées.
+ */
+.message.elise ul,
+.message.elise ol {
+    margin: 0.6rem 0 0.8rem 1.4rem;
+    padding: 0;
+}
+
+
+/*
+ * Espacement entre les différents éléments d'une liste.
+ */
+.message.elise li {
+    margin: 0.25rem 0;
+}
+
+
+/*
+ * Titres Markdown :
+ * # Titre
+ * ## Sous-titre
+ * ### Section
+ */
+.message.elise h1,
+.message.elise h2,
+.message.elise h3 {
+    margin: 1rem 0 0.5rem;
+
+    line-height: 1.25;
+}
+
+
+/*
+ * Tailles volontairement limitées :
+ * les titres d'une réponse ne doivent pas concurrencer le header principal.
+ */
+.message.elise h1 {
+    font-size: 1.35rem;
+}
+
+.message.elise h2 {
+    font-size: 1.2rem;
+}
+
+.message.elise h3 {
+    font-size: 1.05rem;
+}
+
+
+/*
+ * **texte en gras**
+ */
+.message.elise strong {
+    font-weight: 700;
+}
+
+
+/*
+ * *texte en italique*
+ */
+.message.elise em {
+    font-style: italic;
+}
+
+
+/* ==========================================================================
+   8. CODE INLINE ET BLOCS DE CODE
+   ========================================================================== */
+
+/*
+ * Style commun à tout code généré depuis Markdown.
+ */
+.message.elise code {
+    font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+    font-size: 0.95em;
+}
+
+
+/*
+ * Code inline :
+ *
+ * Exemple Markdown :
+ * Utilise `git status`.
+ *
+ * On cible uniquement le code contenu dans un paragraphe ou une liste,
+ * afin de ne pas appliquer ce fond aux blocs <pre>.
+ */
+.message.elise p code,
+.message.elise li code {
+    padding: 0.15rem 0.35rem;
+
+    border-radius: 4px;
+
+    background: rgba(255, 255, 255, 0.08);
+}
+
+
+/*
+ * Bloc de code généré depuis :
+ *
+ * ```python
+ * print("Bonjour")
+ * ```
+ */
+.message.elise pre {
+    margin: 0.8rem 0;
+    padding: 0.9rem 1rem;
+
+    overflow-x: auto;
+
+    border: 1px solid #2b2b2b;
+    border-radius: 8px;
+
+    background: #171717;
+}
+
+
+/*
+ * Le <pre> fournit déjà le fond et le padding.
+ * On neutralise donc ceux du <code> interne.
+ */
+.message.elise pre code {
+    padding: 0;
+
+    background: none;
+}
+
+
+/* ==========================================================================
+   9. ZONE DE SAISIE
+   ========================================================================== */
+
+/*
+ * Reste visible au bas de l'application pendant le défilement.
+ *
+ * Le dégradé permet de fondre visuellement la zone de saisie
+ * avec la conversation.
+ */
 #zone-saisie {
     position: sticky;
     bottom: 0;
@@ -135,11 +373,17 @@ main {
 
     padding: 18px 20px 24px;
 
-    background: linear-gradient(
-        transparent,
-        #111 35%
-    );
+    background:
+        linear-gradient(
+            transparent,
+            #111 35%
+        );
 }
+
+
+/* ==========================================================================
+   10. CHAMP TEXTE
+   ========================================================================== */
 
 #message {
     flex: 1;
@@ -159,10 +403,20 @@ main {
         background 0.2s;
 }
 
+
+/*
+ * Feedback visuel lorsque l'utilisateur écrit.
+ */
 #message:focus {
     border-color: #555;
+
     background: #1f1f1f;
 }
+
+
+/* ==========================================================================
+   11. BOUTON D'ENVOI
+   ========================================================================== */
 
 #envoyer {
     padding: 0 20px;
@@ -171,6 +425,7 @@ main {
     border-radius: 14px;
 
     font-weight: 600;
+
     cursor: pointer;
 
     transition:
@@ -178,10 +433,166 @@ main {
         opacity 0.2s;
 }
 
+
+/*
+ * Léger feedback au survol.
+ */
 #envoyer:hover {
     opacity: 0.9;
 }
 
+
+/*
+ * Petit effet d'enfoncement au clic.
+ */
 #envoyer:active {
     transform: scale(0.97);
+}
+
+/* ==========================================================================
+   12. RAFFINEMENTS DU RENDU DES RÉPONSES
+   ========================================================================== */
+
+/*
+ * Limite la largeur visuelle des réponses d'Élise pour améliorer
+ * la lisibilité des longues réponses.
+ */
+.message.elise {
+    max-width: 78%;
+
+    font-size: 15px;
+}
+
+
+/*
+ * Ajoute un peu d'espace entre les grandes sections d'une réponse.
+ */
+.message.elise > * + * {
+    margin-top: 0.65rem;
+}
+
+
+/*
+ * Rend les listes plus aérées.
+ */
+.message.elise li {
+    margin: 0.35rem 0;
+}
+
+
+/*
+ * Bloc de code plus lisible et légèrement plus distinct du fond général.
+ */
+.message.elise pre {
+    margin: 1rem 0;
+    padding: 1rem 1.1rem;
+
+    border: 1px solid #303030;
+    border-radius: 10px;
+
+    background: #181818;
+
+    line-height: 1.55;
+
+    overflow-x: auto;
+}
+
+
+/*
+ * Le texte du code doit rester compact et net.
+ */
+.message.elise pre code {
+    display: block;
+
+    font-size: 13px;
+    line-height: 1.55;
+
+    white-space: pre;
+}
+
+
+/*
+ * Améliore légèrement l'apparence du code inline.
+ */
+.message.elise p code,
+.message.elise li code {
+    padding: 0.2rem 0.4rem;
+
+    border: 1px solid #2d2d2d;
+    border-radius: 5px;
+
+    background: #1b1b1b;
+}
+
+/* ==========================================================================
+   13. HEADER DES BLOCS DE CODE
+   ========================================================================== */
+
+/*
+ * Barre supérieure affichée au-dessus d'un bloc de code.
+ */
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin:
+        -1rem
+        -1.1rem
+        0.9rem;
+
+    padding: 0.6rem 0.9rem;
+
+    border-bottom: 1px solid #2d2d2d;
+
+    background: #202020;
+}
+
+
+/*
+ * Nom du langage :
+ * python, javascript, html, css, etc.
+ */
+.code-language {
+    font-family:
+        Consolas,
+        "Courier New",
+        monospace;
+
+    font-size: 12px;
+
+    color: #9a9a9a;
+
+    text-transform: lowercase;
+}
+
+
+/*
+ * Bouton permettant de copier le contenu du bloc.
+ */
+.code-copy {
+    padding: 4px 8px;
+
+    border: 0;
+    border-radius: 5px;
+
+    background: transparent;
+    color: #aaa;
+
+    font-size: 12px;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s,
+        color 0.15s;
+}
+
+
+/*
+ * Feedback visuel au survol.
+ */
+.code-copy:hover {
+    background: #303030;
+    color: #fff;
 }

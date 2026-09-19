@@ -18,7 +18,12 @@ from interfaces.tts_client import TTSClient
 from fastapi import WebSocket, WebSocketDisconnect
 import re
 import time
+import sys
 
+sys.stdout.reconfigure(
+    encoding="utf-8",
+    errors="replace"
+)
 EMOJI_PATTERN = re.compile(
     "["
     "\U0001F300-\U0001F5FF"
@@ -35,8 +40,10 @@ EMOJI_PATTERN = re.compile(
     flags=re.UNICODE,
 )
 
+tts_en_cours = Event()
+
 print("[WEB INIT] avant STT", flush=True)
-stt = STT()
+stt=STT()
 print("[WEB INIT] après STT", flush=True)
 
 app = FastAPI()
@@ -50,7 +57,7 @@ app.mount(
 print("[WEB INIT] avant Elise", flush=True)
 
 assistant = Elise(
-    "qwen3:8b",
+    "qwen3:14b",
     [
         lancer_application_locale,
         outil_ajouter_tache,
@@ -79,6 +86,17 @@ boucle_asyncio = None
 class MessageUtilisateur(BaseModel):
     message: str
 
+def envoyer_confirmation_memoire(texte):
+    print(
+        "[MEM CONF] callback appelé",
+        repr(texte),
+        flush=True
+    )
+    envoyer_evenement_websocket({
+        "type": "memory_confirmation",
+        "content": texte
+    })
+
 
 @app.post("/message")
 def recevoir_message(donnees: MessageUtilisateur):
@@ -97,7 +115,8 @@ def afficher_interface():
 def worker_reponse(message, file_stream):
     assistant.repondre(
         message,
-        callback_stream=lambda morceau: file_stream.put(morceau)
+        callback_stream=lambda morceau: file_stream.put(morceau),
+        callback_confirmation=envoyer_confirmation_memoire
     )
     file_stream.put(None)
 
@@ -139,9 +158,14 @@ def worker_vocal():
     while True:
         vocal_event.wait()
         assistant.etat.changer("LISTENING")
+        while tts_en_cours.is_set() or not file_audio.empty() or not file_tts.empty():
+            time.sleep(0.05)
 
         message = stt.ecouter()
-
+        print(
+            f"[PERF] STT terminé : {time.perf_counter():.3f}",
+            flush=True
+        )
         if not vocal_event.is_set():
             assistant.etat.changer("IDLE")
             continue
@@ -157,10 +181,12 @@ def worker_vocal():
             message,
             callback=envoyer_au_tts,
             callback_stream=envoyer_reponse_websocket,
-            callback_fin=vider_buffer_tts
+            callback_fin=vider_buffer_tts,
+            callback_confirmation=envoyer_confirmation_memoire
         )
 
 def envoyer_reponse_websocket(morceau):
+
     envoyer_evenement_websocket({
         "type": "reponse",
         "contenu": morceau
@@ -209,10 +235,45 @@ buffer_tts = BufferTTS()
 
 
 def nettoyer_pour_tts(texte):
+    texte = re.sub(r"\*\*(.*?)\*\*", r"\1", texte)
+    texte = re.sub(r"\*(.*?)\*", r"\1", texte)
+    texte = re.sub(r"`([^`]*)`", r"\1", texte)
+    texte = re.sub(r"\s+([,.;:!?])", r"\1", texte)
+    texte = re.sub(r"([,.;:!?])(?=\S)", r"\1 ", texte)
     texte = EMOJI_PATTERN.sub("", texte)
-    texte = re.sub(r"\s+", " ", texte)
-    return texte.strip()
 
+    # Les parenthèses rendent souvent la prosodie dégueulasse
+    texte = texte.replace("(", ", ")
+    texte = texte.replace(")", ", ")
+
+    # Guillemets inutiles oralement
+    texte = texte.replace('"', "")
+    texte = texte.replace("“", "")
+    texte = texte.replace("”", "")
+
+    remplacements = {
+        "HTTPS": "H T T P S",
+        "HTTP": "H T T P",
+        "TCP": "T C P",
+        "UDP": "U D P",
+        "API": "A P I",
+        "URL": "U R L",
+        "HTML": "H T M L",
+        "CSS": "C S S",
+        "WebSocket": "Web Socket",
+    }
+
+    for original, remplacement in remplacements.items():
+        texte = texte.replace(original, remplacement)
+
+    texte = re.sub(r"\s+", " ", texte)
+
+    # évite les trucs du genre ", ,"
+    texte = re.sub(r",\s*,+", ",", texte)
+
+    return texte.strip(" ,")
+
+"""
 def envoyer_au_tts(phrase):
     print("[DEBUG callback TTS] phrase =", repr(phrase))
     bloc = buffer_tts.ajouter(phrase)
@@ -223,6 +284,23 @@ def envoyer_au_tts(phrase):
             print(f"[PERF] Premier bloc TTS prêt : {delai:.3f}s")
 
         file_tts.put(bloc)
+"""
+def envoyer_au_tts(phrase):
+    phrase = nettoyer_pour_tts(phrase)
+
+    if not phrase:
+        return
+
+    print("[TTS] phrase prête :", repr(phrase), flush=True)
+
+    if assistant.debut_reponse is not None:
+        delai = time.perf_counter() - assistant.debut_reponse
+        print(
+            f"[PERF] Première phrase envoyée au TTS : {delai:.3f}s",
+            flush=True
+        )
+
+    file_tts.put(phrase)
 
 def vider_buffer_tts():
     print("[DEBUG flush TTS]")
@@ -255,12 +333,16 @@ def worker_lecture():
     while True:
         audio_wav = file_audio.get()
         print("[LECTURE] reçu")
-
+        tts_en_cours.set()
         try:
             assistant.etat.changer("SPEAKING")
             if assistant.debut_reponse is not None:
                 delai = time.perf_counter() - assistant.debut_reponse
                 print(f"[PERF] Début lecture audio : {delai:.3f}s")
+            print(
+                f"[PERF] Début lecture audio réel : {time.perf_counter():.3f}",
+                flush=True
+            )
             tts.jouer(audio_wav)
             print("[LECTURE] terminé")
 
@@ -269,20 +351,38 @@ def worker_lecture():
 
         finally:
             assistant.etat.changer("IDLE")
+            tts_en_cours.clear()
             file_audio.task_done()
 
 Thread(target=worker_generation, daemon=True).start()
 Thread(target=worker_lecture, daemon=True).start()
 
 def envoyer_evenement_websocket(evenement):
+    print(
+        "[WS] tentative envoi :",
+        evenement,
+        "| websocket actif :",
+        websocket_actif is not None,
+        "| boucle asyncio :",
+        boucle_asyncio is not None,
+        flush=True
+    )
     if websocket_actif is None or boucle_asyncio is None:
         return
 
-    asyncio.run_coroutine_threadsafe(
+    futur = asyncio.run_coroutine_threadsafe(
         websocket_actif.send_json(evenement),
         boucle_asyncio
     )
 
+    def verifier_envoi(futur):
+        try:
+            futur.result()
+            print("[WS] événement envoyé avec succès", flush=True)
+        except Exception as erreur:
+            print("[WS] ERREUR ENVOI :", repr(erreur), flush=True)
+
+    futur.add_done_callback(verifier_envoi)
 
 @app.post("/vocal/activer")
 def active_vocal():

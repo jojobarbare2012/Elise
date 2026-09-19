@@ -12,7 +12,7 @@ class STT:
         self.model = WhisperModel(
             "medium",
             device="cuda",
-            compute_type="float16"
+            compute_type="int8_float16"
         )
         self.vad_model = load_silero_vad(onnx=True)
         self.frequence = 16000

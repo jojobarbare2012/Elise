@@ -106,19 +106,63 @@ def ollama_est_pret():
     except Exception:
         return False
 
+def chauffer_fish():
+    url = "http://127.0.0.1:8080/tts"
+
+    donnees = json.dumps({
+        "text": "Élise est prête."
+    }).encode("utf-8")
+
+    requete = urllib.request.Request(
+        url,
+        data=donnees,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+
+    debut = time.perf_counter()
+
+    try:
+        with urllib.request.urlopen(
+            requete,
+            timeout=120
+        ) as reponse:
+            reponse.read()
+
+        print(
+            f"Fish chaud en {time.perf_counter() - debut:.2f}s.",
+            flush=True
+        )
+        return True
+
+    except Exception as erreur:
+        print(
+            f"Échec warm-up Fish : {erreur}",
+            flush=True
+        )
+        return False
+
 
 def chauffer_qwen():
     url = "http://127.0.0.1:11434/api/chat"
 
     donnees = json.dumps({
-        "model": "qwen3:8b",
+        "model": "qwen3:14b",
         "messages": [
             {
+                "role": "system",
+                "content": (
+                    "Tu es Élise, l'assistante personnelle de Jonathan. "
+                    "Tu réponds naturellement en français."
+                )
+            },
+            {
                 "role": "user",
-                "content": "Réponds uniquement par OK."
+                "content": "Salut Élise."
             }
         ],
-        "stream": False
+        "stream": False,
+        "keep_alive": "30m"
     }).encode("utf-8")
 
     requete = urllib.request.Request(
@@ -135,12 +179,12 @@ def chauffer_qwen():
     try:
         with urllib.request.urlopen(
             requete,
-            timeout=60
+            timeout=120
         ) as reponse:
             reponse.read()
 
         duree = time.perf_counter() - debut
-        print(f"Qwen chaud en {duree:.2f}s.")
+        print(f"Qwen 14B chaud en {duree:.2f}s.")
         return True
 
     except Exception as erreur:
@@ -280,7 +324,7 @@ def decharger_qwen():
     url = "http://127.0.0.1:11434/api/chat"
 
     donnees = json.dumps({
-        "model": "qwen3:8b",
+        "model": "qwen3:14b",
         "messages": [],
         "keep_alive": 0,
         "stream": False
@@ -321,8 +365,13 @@ else:
         print("[SETUP] fish READY", flush=True)
     else:
         print("[SETUP] fish ERROR", flush=True)
-
-
+print("[SETUP] fish WARMING", flush=True)
+"""
+if chauffer_fish():
+    print("[SETUP] fish HOT", flush=True)
+else:
+    print("[SETUP] fish WARMUP ERROR", flush=True)
+"""
 if ollama_est_pret():
     print("Ollama déjà actif.")
     print("[SETUP] ollama READY", flush=True)
