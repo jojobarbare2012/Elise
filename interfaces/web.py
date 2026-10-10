@@ -1,22 +1,27 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from core.elise import Elise
-from module.applications import lancer_application_locale
-from module.tache import (
+from modules.applications import lancer_application_locale
+from modules.taches import (
     outil_ajouter_tache,
     outil_lister_taches,
     outil_modifier_statut,
     outil_supprimer_tache,
 )
+from modules.calendrier import (outil_ajouter_evenement,
+                               outil_lister_evenements,
+                               outil_modifier_evenement,
+                               outil_supprimer_evenement,
+                               outil_rechercher_evenements,
+                               outil_resoudre_date_relative)
 from fastapi.responses import FileResponse, StreamingResponse
 from queue import Queue
 from fastapi.staticfiles import StaticFiles
 from threading import Thread, Event
-from interfaces.stt import STT
+from services import stt, tts
 import asyncio
-from interfaces.tts_client import TTSClient
+from services import fish, ollama
 from fastapi import WebSocket, WebSocketDisconnect
-import re
 import time
 import sys
 
@@ -24,28 +29,12 @@ sys.stdout.reconfigure(
     encoding="utf-8",
     errors="replace"
 )
-EMOJI_PATTERN = re.compile(
-    "["
-    "\U0001F300-\U0001F5FF"
-    "\U0001F600-\U0001F64F"
-    "\U0001F680-\U0001F6FF"
-    "\U0001F700-\U0001F77F"
-    "\U0001F780-\U0001F7FF"
-    "\U0001F800-\U0001F8FF"
-    "\U0001F900-\U0001F9FF"
-    "\U0001FA00-\U0001FAFF"
-    "\U00002600-\U000026FF"
-    "\U00002700-\U000027BF"
-    "]+",
-    flags=re.UNICODE,
-)
 
-tts_en_cours = Event()
 
-print("[WEB INIT] avant STT", flush=True)
-stt=STT()
-print("[WEB INIT] après STT", flush=True)
 
+
+
+qwen_actif = True
 app = FastAPI()
 app.mount(
     "/static",
@@ -53,7 +42,10 @@ app.mount(
     name="static",
 )
 
+print("[WEB INIT] chargement STT", flush=True)
 
+if not stt.demarrer():
+    print("[WEB INIT] erreur chargement STT", flush=True)
 print("[WEB INIT] avant Elise", flush=True)
 
 assistant = Elise(
@@ -64,6 +56,12 @@ assistant = Elise(
         outil_lister_taches,
         outil_modifier_statut,
         outil_supprimer_tache,
+        outil_ajouter_evenement,
+        outil_lister_evenements,
+        outil_modifier_evenement,
+        outil_supprimer_evenement,
+        outil_rechercher_evenements,
+        outil_resoudre_date_relative
     ],
 )
 
@@ -73,14 +71,17 @@ print("[WEB INIT] après Elise", flush=True)
 vocal_event = Event()
 
 
-file_tts = Queue()
-file_audio = Queue()
-print("[WEB INIT] avant TTS", flush=True)
-tts = TTSClient()
-print("[WEB INIT] après TTS", flush=True)
+gestionnaire_tts = tts.GestionnaireTTS()
+
+gestionnaire_tts.callback_debut_lecture = (
+    lambda: assistant.etat.changer("SPEAKING")
+)
+
+gestionnaire_tts.callback_fin_lecture = (
+    lambda: assistant.etat.changer("IDLE")
+)
 websocket_actif = None
 boucle_asyncio = None
-
 
 
 class MessageUtilisateur(BaseModel):
@@ -100,6 +101,14 @@ def envoyer_confirmation_memoire(texte):
 
 @app.post("/message")
 def recevoir_message(donnees: MessageUtilisateur):
+    if not qwen_actif:
+        def qwen_desactive():
+            yield "Qwen est actuellement désactivé."
+
+        return StreamingResponse(
+            qwen_desactive(),
+            media_type="text/plain"
+        )
     reponse = assistant.repondre(donnees.message)
 
     return {
@@ -131,6 +140,14 @@ def lire_stream(file_stream: FileResponse):
 
 @app.post("/message-stream")
 def recevoir_message_stream(donnees: MessageUtilisateur):
+    if not qwen_actif:
+        def qwen_desactive():
+            yield "Qwen est actuellement désactivé."
+
+        return StreamingResponse(
+            qwen_desactive(),
+            media_type="text/plain"
+        )
     file_stream = Queue()
     thread = Thread(
         target=worker_reponse,
@@ -156,34 +173,94 @@ def obtenir_etat():
 
 def worker_vocal():
     while True:
-        vocal_event.wait()
-        assistant.etat.changer("LISTENING")
-        while tts_en_cours.is_set() or not file_audio.empty() or not file_tts.empty():
-            time.sleep(0.05)
+        print("[VOCAL] Worker démarré", flush=True)
 
-        message = stt.ecouter()
-        print(
-            f"[PERF] STT terminé : {time.perf_counter():.3f}",
-            flush=True
-        )
-        if not vocal_event.is_set():
-            assistant.etat.changer("IDLE")
-            continue
+        while True:
+            print("[VOCAL] En attente activation", flush=True)
+            vocal_event.wait()
 
+            print("[VOCAL] Activation reçue", flush=True)
 
-        envoyer_evenement_websocket({
-            "type": "transcription",
-            "contenu": message
-        })
-        print("Vous :", message)
+            assistant.etat.changer("LISTENING")
 
-        assistant.repondre(
-            message,
-            callback=envoyer_au_tts,
-            callback_stream=envoyer_reponse_websocket,
-            callback_fin=vider_buffer_tts,
-            callback_confirmation=envoyer_confirmation_memoire
-        )
+            print(
+                "[VOCAL] TTS occupé :",
+                gestionnaire_tts.est_occupe(),
+                flush=True
+            )
+
+            while gestionnaire_tts.est_occupe():
+                time.sleep(0.05)
+
+            print("[VOCAL] TTS libre", flush=True)
+
+            moteur_stt = stt.obtenir()
+
+            print(
+                "[VOCAL] moteur STT :",
+                moteur_stt,
+                flush=True
+            )
+
+            if moteur_stt is None:
+                print("[VOCAL] Aucun moteur STT", flush=True)
+
+                vocal_event.clear()
+                assistant.etat.changer("IDLE")
+                time.sleep(0.2)
+                continue
+
+            try:
+                print("[VOCAL] Entrée dans ecouter()", flush=True)
+
+                message = moteur_stt.ecouter(
+                    stop_event=vocal_event
+                )
+
+                print(
+                    "[VOCAL] Sortie de ecouter() :",
+                    repr(message),
+                    flush=True
+                )
+
+            except Exception as erreur:
+                print(
+                    "[VOCAL] ERREUR STT :",
+                    repr(erreur),
+                    flush=True
+                )
+
+                assistant.etat.changer("IDLE")
+                vocal_event.clear()
+                continue
+
+            if message is None:
+                print("[VOCAL] Écoute annulée", flush=True)
+                assistant.etat.changer("IDLE")
+                continue
+
+            print(
+                f"[PERF] STT terminé : {time.perf_counter():.3f}",
+                flush=True
+            )
+
+            if not vocal_event.is_set():
+                assistant.etat.changer("IDLE")
+                continue
+
+            envoyer_evenement_websocket({
+                "type": "transcription",
+                "contenu": message
+            })
+
+            print("Vous :", message)
+
+            assistant.repondre(
+                message,
+                callback=envoyer_au_tts,
+                callback_stream=envoyer_reponse_websocket,
+                callback_confirmation=envoyer_confirmation_memoire
+            )
 
 def envoyer_reponse_websocket(morceau):
 
@@ -199,163 +276,19 @@ thread_vocal = Thread(
 
 thread_vocal.start()
 
-class BufferTTS:
-    def __init__(self, taille_min=80):
-        self.buffer = ""
-        self.taille_min = taille_min
 
-    def ajouter(self, phrase):
-        phrase = nettoyer_pour_tts(phrase)
-
-        if not phrase:
-            return None
-
-        if self.buffer:
-            self.buffer += " "
-
-        self.buffer += phrase
-
-        if len(self.buffer) >= self.taille_min:
-            bloc = self.buffer
-            self.buffer = ""
-            return bloc
-
-        return None
-
-    def flush(self):
-        if not self.buffer:
-            return None
-
-        bloc = self.buffer
-        self.buffer = ""
-        return bloc
-
-
-buffer_tts = BufferTTS()
-
-
-def nettoyer_pour_tts(texte):
-    texte = re.sub(r"\*\*(.*?)\*\*", r"\1", texte)
-    texte = re.sub(r"\*(.*?)\*", r"\1", texte)
-    texte = re.sub(r"`([^`]*)`", r"\1", texte)
-    texte = re.sub(r"\s+([,.;:!?])", r"\1", texte)
-    texte = re.sub(r"([,.;:!?])(?=\S)", r"\1 ", texte)
-    texte = EMOJI_PATTERN.sub("", texte)
-
-    # Les parenthèses rendent souvent la prosodie dégueulasse
-    texte = texte.replace("(", ", ")
-    texte = texte.replace(")", ", ")
-
-    # Guillemets inutiles oralement
-    texte = texte.replace('"', "")
-    texte = texte.replace("“", "")
-    texte = texte.replace("”", "")
-
-    remplacements = {
-        "HTTPS": "H T T P S",
-        "HTTP": "H T T P",
-        "TCP": "T C P",
-        "UDP": "U D P",
-        "API": "A P I",
-        "URL": "U R L",
-        "HTML": "H T M L",
-        "CSS": "C S S",
-        "WebSocket": "Web Socket",
-    }
-
-    for original, remplacement in remplacements.items():
-        texte = texte.replace(original, remplacement)
-
-    texte = re.sub(r"\s+", " ", texte)
-
-    # évite les trucs du genre ", ,"
-    texte = re.sub(r",\s*,+", ",", texte)
-
-    return texte.strip(" ,")
-
-"""
 def envoyer_au_tts(phrase):
-    print("[DEBUG callback TTS] phrase =", repr(phrase))
-    bloc = buffer_tts.ajouter(phrase)
-    if bloc:
-        print("[DEBUG callback TTS] ENQUEUE =", repr(bloc))
-        if assistant.debut_reponse is not None:
-            delai = time.perf_counter() - assistant.debut_reponse
-            print(f"[PERF] Premier bloc TTS prêt : {delai:.3f}s")
-
-        file_tts.put(bloc)
-"""
-def envoyer_au_tts(phrase):
-    phrase = nettoyer_pour_tts(phrase)
-
-    if not phrase:
-        return
-
-    print("[TTS] phrase prête :", repr(phrase), flush=True)
-
     if assistant.debut_reponse is not None:
         delai = time.perf_counter() - assistant.debut_reponse
+
         print(
             f"[PERF] Première phrase envoyée au TTS : {delai:.3f}s",
             flush=True
         )
 
-    file_tts.put(phrase)
-
-def vider_buffer_tts():
-    print("[DEBUG flush TTS]")
-    bloc = buffer_tts.flush()
-
-    if bloc:
-        print("[DEBUG flush TTS] ENQUEUE =", repr(bloc))
-        file_tts.put(bloc)
-
-def worker_generation():
-    while True:
-        phrase = file_tts.get()
-        print("[GEN] reçu :", phrase)
-
-        try:
-            audio_wav = tts.generer(phrase)
-            print("[GEN] audio :", len(audio_wav), "octets")
-
-            file_audio.put(audio_wav)
-            print("[GEN] envoyé à file_audio")
-
-        except Exception as erreur:
-            print("[GEN] ERREUR :", erreur)
-
-        finally:
-            file_tts.task_done()
+    gestionnaire_tts.envoyer(phrase)
 
 
-def worker_lecture():
-    while True:
-        audio_wav = file_audio.get()
-        print("[LECTURE] reçu")
-        tts_en_cours.set()
-        try:
-            assistant.etat.changer("SPEAKING")
-            if assistant.debut_reponse is not None:
-                delai = time.perf_counter() - assistant.debut_reponse
-                print(f"[PERF] Début lecture audio : {delai:.3f}s")
-            print(
-                f"[PERF] Début lecture audio réel : {time.perf_counter():.3f}",
-                flush=True
-            )
-            tts.jouer(audio_wav)
-            print("[LECTURE] terminé")
-
-        except Exception as erreur:
-            print("[LECTURE] ERREUR :", erreur)
-
-        finally:
-            assistant.etat.changer("IDLE")
-            tts_en_cours.clear()
-            file_audio.task_done()
-
-Thread(target=worker_generation, daemon=True).start()
-Thread(target=worker_lecture, daemon=True).start()
 
 def envoyer_evenement_websocket(evenement):
     print(
@@ -384,6 +317,13 @@ def envoyer_evenement_websocket(evenement):
 
     futur.add_done_callback(verifier_envoi)
 
+@app.get("/")
+def afficher_interface():
+    response = FileResponse("interfaces/static/index.html")
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
 @app.post("/vocal/activer")
 def active_vocal():
     vocal_event.set()
@@ -396,6 +336,8 @@ def active_vocal():
 @app.post("/vocal/desactiver")
 def desactive_vocal():
     vocal_event.clear()
+
+    assistant.etat.changer("IDLE")
 
     print("Vocal :", vocal_event.is_set())
 
@@ -427,3 +369,94 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/services/fish")
+def etat_fish():
+    return {
+        "service": "fish",
+        "actif": fish.est_actif()
+    }
+
+@app.post("/services/fish/demarrer")
+def route_demarrer_fish():
+    succes = fish.demarrer()
+
+    return {
+        "service": "fish",
+        "actif": succes
+    }
+
+
+@app.post("/services/fish/arreter")
+def route_arreter_fish():
+    succes = fish.arreter()
+
+    return {
+        "service": "fish",
+        "actif": False if succes else fish.est_actif()
+    }
+
+@app.get("/services/whisper")
+def etat_whisper():
+    return {
+        "service": "whisper",
+        "actif": stt.est_actif()
+    }
+
+
+@app.post("/services/whisper/demarrer")
+def route_demarrer_whisper():
+    succes = stt.demarrer()
+
+    return {
+        "service": "whisper",
+        "actif": succes
+    }
+
+
+@app.post("/services/whisper/arreter")
+def route_arreter_whisper():
+    succes = stt.arreter()
+
+    return {
+        "service": "whisper",
+        "actif": False if succes else stt.est_actif()
+    }
+
+@app.get("/services/qwen")
+def etat_qwen():
+    return {
+        "service": "qwen",
+        "actif": qwen_actif
+    }
+
+
+@app.post("/services/qwen/demarrer")
+def route_demarrer_qwen():
+    global qwen_actif
+
+    succes = ollama.charger_modele()
+
+    if succes:
+        qwen_actif = True
+
+    return {
+        "service": "qwen",
+        "actif": qwen_actif
+    }
+
+
+@app.post("/services/qwen/arreter")
+def route_arreter_qwen():
+    global qwen_actif
+
+    succes = ollama.decharger_modele()
+
+    if succes:
+        qwen_actif = False
+
+    return {
+        "service": "qwen",
+        "actif": qwen_actif
+    }
+

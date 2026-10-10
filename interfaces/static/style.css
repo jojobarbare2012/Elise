@@ -596,3 +596,491 @@ main {
     background: #303030;
     color: #fff;
 }
+
+:root {
+    --bg: #0d0d0d;
+    --panel: #151515;
+    --panel-soft: #1c1c1c;
+    --border: #2a2a2a;
+    --text: #f2f2f2;
+    --muted: #8d8d8d;
+    --accent: #ffffff;
+}
+
+#app-shell {
+    width: 100%;
+    height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+}
+
+.main-content {
+    width: 100%;
+    height: 100%;
+}
+
+.topbar {
+    height: 78px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+    margin: 0;
+    font-size: 22px;
+    letter-spacing: 6px;
+}
+
+.topbar p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #62df92;
+}
+
+.burger-button {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+}
+
+.burger-button span {
+    width: 22px;
+    height: 2px;
+    background: var(--text);
+    border-radius: 999px;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 30;
+
+    width: 250px;
+    height: 100vh;
+
+    background: #121212;
+    border-right: 1px solid var(--border);
+
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    height: 78px;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.sidebar-title {
+    font-weight: 700;
+    letter-spacing: 4px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 12px;
+}
+
+.nav-item {
+    width: 100%;
+    padding: 12px 14px;
+
+    border: none;
+    border-radius: 10px;
+
+    text-align: left;
+    color: var(--muted);
+    background: transparent;
+
+    cursor: pointer;
+}
+
+.nav-item:hover {
+    background: var(--panel-soft);
+    color: var(--text);
+}
+
+.nav-item.active {
+    background: var(--panel-soft);
+    color: var(--text);
+}
+
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+
+    background: rgba(0, 0, 0, 0.45);
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* VUES */
+
+.app-view {
+    display: none;
+    height: calc(100vh - 78px);
+}
+
+.app-view.active {
+    display: block;
+}
+
+/* CALENDRIER */
+
+.calendar-page {
+    height: 100%;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.calendar-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 20px;
+}
+
+.calendar-toolbar h2 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.calendar-toolbar p {
+    margin: 6px 0 0;
+    color: var(--muted);
+}
+
+.calendar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.calendar-actions button {
+    min-width: 38px;
+    height: 38px;
+
+    padding: 0 12px;
+
+    border: 1px solid var(--border);
+    border-radius: 9px;
+
+    background: var(--panel);
+    color: var(--text);
+
+    cursor: pointer;
+}
+
+.calendar-actions button:hover {
+    background: var(--panel-soft);
+}
+
+.calendar-actions .calendar-add {
+    font-size: 22px;
+    font-weight: 300;
+}
+
+.calendar-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-weekdays {
+    background: #111;
+    border-bottom: 1px solid var(--border);
+}
+
+.calendar-weekdays div {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.calendar-day {
+    min-height: 110px;
+    padding: 10px;
+
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+
+    background: var(--panel);
+}
+
+.calendar-day:nth-child(7n) {
+    border-right: none;
+}
+
+.calendar-day.other-month {
+    opacity: 0.35;
+}
+
+.calendar-day.today {
+    background: #202020;
+}
+
+.calendar-day-number {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.calendar-events {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    margin-top: 9px;
+}
+
+.calendar-event {
+    padding: 6px 7px;
+
+    border-radius: 7px;
+    background: #292929;
+
+    font-size: 11px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.empty-view {
+    padding: 30px;
+}
+
+/* =========================================================
+   CORRECTIONS LAYOUT MULTI-VUES
+   ========================================================= */
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+#app-shell {
+    width: 100%;
+    height: 100vh;
+}
+
+
+/*
+ * Neutralise les anciennes règles globales appliquées à <main>.
+ */
+main.main-content {
+    max-width: none;
+    width: 100%;
+    height: 100vh;
+
+    margin: 0;
+
+    display: flex;
+    flex-direction: column;
+
+    min-height: 0;
+}
+
+
+/* Header commun aux vues */
+
+.topbar {
+    flex: 0 0 78px;
+    box-sizing: border-box;
+}
+
+
+/* Les vues occupent tout l'espace restant */
+
+.app-view {
+    display: none;
+
+    flex: 1;
+    min-height: 0;
+}
+
+
+/*
+ * Le chat a besoin d'un layout flex vertical,
+ * sinon #conversation ne peut plus prendre l'espace restant.
+ */
+#chat-view.active {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/*
+ * Calendrier / tâches peuvent rester en bloc.
+ */
+#calendar-view.active,
+#tasks-view.active {
+    display: block;
+}
+
+
+/* Conversation */
+
+#conversation {
+    flex: 1;
+    min-height: 0;
+
+    padding: 32px 20px;
+
+    overflow-y: auto;
+}
+
+
+/*
+ * Maintenant la zone de saisie n'a plus besoin d'être sticky,
+ * puisque le chat lui-même est un flex vertical.
+ */
+#zone-saisie {
+    position: static;
+
+    flex: 0 0 auto;
+
+    padding: 18px 20px;
+}
+
+
+/* Bouton vocal en bas du chat */
+
+#vocal {
+    flex: 0 0 auto;
+}
+
+
+/* Le calendrier doit tenir dans la fenêtre */
+
+.calendar-page {
+    box-sizing: border-box;
+
+    height: 100%;
+    overflow-y: auto;
+}
+
+
+.services-panel {
+    padding: 8px;
+}
+
+.services-title {
+    margin-bottom: 12px;
+
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+
+    color: #666;
+    text-transform: uppercase;
+}
+
+.service-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 10px 6px;
+}
+
+.service-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 13px;
+}
+
+.service-dot {
+    width: 8px;
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #555;
+}
+
+.service-dot.on {
+    background: #62df92;
+}
+
+.service-dot.off {
+    background: #d65c5c;
+}
+
+.service-button {
+    padding: 6px 10px;
+
+    border: 1px solid var(--border);
+    border-radius: 7px;
+
+    background: var(--panel);
+    color: var(--text);
+
+    font-size: 11px;
+
+    cursor: pointer;
+}
+
+.service-button:hover {
+    background: var(--panel-soft);
+}

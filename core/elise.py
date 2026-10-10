@@ -47,8 +47,46 @@ Exemples :
   pour chacun.
 
 Ne mélange jamais plusieurs langages dans un même bloc si cela peut être évité.
-"""
 
+=== CALENDRIER ===
+
+Lorsqu'une demande concerne une date ou une heure relative, utilise toujours
+le contexte temporel actuel pour la résoudre.
+
+Ne prétends jamais qu'un événement existe sans consulter le calendrier lorsque
+la question porte sur les événements actuellement enregistrés.
+
+Pour créer, modifier ou supprimer un événement, utilise les outils du calendrier.
+
+N'invente jamais une heure, une durée, un lieu ou une date absente de la demande.
+
+Si une information temporelle nécessaire est réellement ambiguë, demande une
+précision au lieu de choisir arbitrairement.
+
+Lorsqu'un événement existant doit être retrouvé à partir de son nom, de sa
+description ou de son lieu, utilise l'outil de recherche d'événements plutôt
+que de filtrer arbitrairement par la nouvelle heure demandée.
+
+Lorsqu'une demande contient une date relative ou un jour de semaine
+comme "demain", "mardi", "mardi prochain" ou "dans 3 jours",
+utilise toujours l'outil de résolution de date avant d'appeler
+les outils du calendrier.
+
+Ne calcule pas toi-même la date correspondante.
+
+=== UTILISATION DES OUTILS ===
+
+Tu peux appeler plusieurs outils successivement si une demande nécessite
+plusieurs étapes.
+
+Si une action nécessite d'abord de consulter une information pour obtenir
+un identifiant ou un état actuel, consulte d'abord l'outil approprié,
+puis utilise son résultat pour effectuer l'action demandée.
+
+Ne demande pas à Jonathan un identifiant technique si tu peux le retrouver
+toi-même avec les outils disponibles.
+"""
+MAX_TOURS_OUTILS = 5
 
 REPONSES_POSITIVES = {
     "oui",
@@ -66,6 +104,33 @@ REPONSES_NEGATIVES = {
     "laisse",
     "ne change rien"
 }
+
+from datetime import datetime, timedelta
+
+
+JOURS_FR = [
+    "lundi",
+    "mardi",
+    "mercredi",
+    "jeudi",
+    "vendredi",
+    "samedi",
+    "dimanche",
+]
+
+
+def obtenir_contexte_temporel():
+    maintenant = datetime.now().astimezone()
+
+    return (
+        "=== CONTEXTE TEMPOREL ACTUEL ===\n"
+        f"Date actuelle : {maintenant.date().isoformat()}\n"
+        f"Jour actuel : {JOURS_FR[maintenant.weekday()]}\n"
+        f"Heure actuelle : {maintenant.strftime('%H:%M:%S')}\n"
+        f"Fuseau horaire : {maintenant.tzinfo}\n\n"
+        "Pour toute date relative, utilise l'outil de résolution temporelle. "
+        "Ne calcule pas toi-même la date correspondante."
+    )
 
 def filtrer_code_pour_tts(texte, dans_bloc_code):
     sortie = []
@@ -447,15 +512,40 @@ class Elise:
         return texte_complet, tool_calls
 
     def _executer_outils(self, tool_calls):
+        nombre_executes = 0
+
         for call in tool_calls:
-            fonction_cible = self.outils_disponibles.get(call.function.name)
+            fonction_cible = self.outils_disponibles.get(
+                call.function.name
+            )
+
             if fonction_cible:
-                resultat = fonction_cible(**call.function.arguments)
+                print(
+                    "[TOOL]",
+                    call.function.name,
+                    call.function.arguments,
+                    flush=True
+                )
+
+                resultat = fonction_cible(
+                    **call.function.arguments
+                )
+
+                print(
+                    "[TOOL RESULT]",
+                    resultat,
+                    flush=True
+                )
+
                 self.conversation.append({
-                        'role': 'tool',
-                        'tool_name': call.function.name,
-                        'content': str(resultat)
+                    "role": "tool",
+                    "tool_name": call.function.name,
+                    "content": str(resultat)
                 })
+
+                nombre_executes += 1
+
+        return nombre_executes
 
     def _memoriser_message(self, message):
         analyse = analyser_message_pour_memoire(message)
@@ -507,7 +597,14 @@ class Elise:
 
         return None
 
-    def repondre(self,message,callback=None,callback_stream=None, callback_fin=None,callback_confirmation=None):
+    def repondre(
+            self,
+            message,
+            callback=None,
+            callback_stream=None,
+            callback_fin=None,
+            callback_confirmation=None
+    ):
         modification = recuperer_derniere_modification_en_attente()
 
         if modification is not None:
@@ -543,13 +640,25 @@ class Elise:
                     callback_fin()
 
                 return texte_confirmation
-        self.conversation.append({'role': 'user', 'content': message})
+
+        self.conversation.append({
+            "role": "user",
+            "content": message
+        })
+
         contexte_memoire = self._recuperer_contexte_memoire(message)
 
         messages_pour_reponse = [
             message.copy()
             for message in self.conversation
         ]
+
+        contexte_temporel = obtenir_contexte_temporel()
+
+        messages_pour_reponse[0]["content"] += (
+                "\n\n"
+                + contexte_temporel
+        )
 
         if contexte_memoire:
             messages_pour_reponse[0]["content"] += (
@@ -558,9 +667,12 @@ class Elise:
                     + contexte_memoire
                     + "\n=== FIN MÉMOIRE ===\n"
             )
+
         self.etat.changer("THINKING")
+
         try:
             self.debut_reponse = time.perf_counter()
+
             print("[PERF] Début reponse")
             print("\n=== MESSAGES ENVOYÉS À QWEN ===")
 
@@ -572,15 +684,20 @@ class Elise:
                 )
 
             print("=== FIN MESSAGES ===\n")
+
+            # ------------------------------------------------------------
+            # Premier appel au modèle
+            # ------------------------------------------------------------
+
             stream = ollama.chat(
                 model=self.model,
                 messages=messages_pour_reponse,
                 tools=self.outils,
                 stream=True,
-                options = {
-                "num_predict": 4096
+                options={
+                    "num_predict": 4096
                 },
-                think = False
+                think=False
             )
 
             texte_complet, tool_calls = self._traiter_stream(
@@ -589,7 +706,9 @@ class Elise:
                 callback_stream,
                 self.debut_reponse
             )
+
             texte_complet = nettoyer_reponse_complete(texte_complet)
+
             message_assistant = {
                 "role": "assistant",
                 "content": texte_complet
@@ -600,43 +719,88 @@ class Elise:
 
             self.conversation.append(message_assistant)
 
-            if tool_calls:
-                self._executer_outils(tool_calls)
-                stream_final = ollama.chat(
-                              model=self.model,
-                              messages=self.conversation,
-                              stream=True,
-                              options={
-                                "num_predict": 4096
-                    }
+            # ------------------------------------------------------------
+            # Boucle multi-tools
+            # ------------------------------------------------------------
+
+            tour_outils = 0
+            max_tours_outils = 5
+
+            while tool_calls and tour_outils < max_tours_outils:
+                tour_outils += 1
+
+                print(
+                    f"[TOOLS] Tour {tour_outils}/{max_tours_outils}",
+                    flush=True
                 )
-                texte_final, _ = self._traiter_stream(
-                    stream_final,
+
+                self._executer_outils(tool_calls)
+
+                stream = ollama.chat(
+                    model=self.model,
+                    messages=self.conversation,
+                    tools=self.outils,
+                    stream=True,
+                    options={
+                        "num_predict": 4096
+                    },
+                    think=False
+                )
+
+                texte_complet, tool_calls = self._traiter_stream(
+                    stream,
                     callback,
                     callback_stream,
                     self.debut_reponse
                 )
-                texte_final = nettoyer_reponse_complete(texte_final)
+
+                texte_complet = nettoyer_reponse_complete(texte_complet)
+
+                message_assistant = {
+                    "role": "assistant",
+                    "content": texte_complet
+                }
+
+                if tool_calls:
+                    message_assistant["tool_calls"] = tool_calls
+
+                self.conversation.append(message_assistant)
+
+            # ------------------------------------------------------------
+            # Sécurité anti-boucle infinie
+            # ------------------------------------------------------------
+
+            if tool_calls:
+                print(
+                    "[TOOLS] Limite maximale de tours atteinte.",
+                    flush=True
+                )
+
+                texte_complet = (
+                    "Je n'ai pas réussi à terminer l'action correctement."
+                )
+
                 self.conversation.append({
                     "role": "assistant",
-                    "content": texte_final
+                    "content": texte_complet
                 })
-                if callback_fin:
-                    callback_fin()
 
-                self._lancer_memorisation_background(
-                    message,
-                    callback_confirmation
-                )
-                return texte_final
+                if callback_stream:
+                    callback_stream(texte_complet)
+
+            # ------------------------------------------------------------
+            # Fin de réponse
+            # ------------------------------------------------------------
+
             if callback_fin:
                 callback_fin()
 
             self._lancer_memorisation_background(
-               message,
+                message,
                 callback_confirmation
             )
 
             return texte_complet
+
         finally:
             self.etat.changer("IDLE")

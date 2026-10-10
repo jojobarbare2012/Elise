@@ -1,6 +1,6 @@
 import subprocess
 
-from . import function
+from . import functions as function
 
 
 def lancer_application_locale(nom_appli: str) -> str:

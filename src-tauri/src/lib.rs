@@ -20,6 +20,7 @@ struct LauncherProcess(Mutex<Option<CommandChild>>);
 pub fn run() {
     let fermeture_lancee = Arc::new(AtomicBool::new(false));
     let nettoyage_termine = Arc::new(AtomicBool::new(false));
+    
 
     let fermeture_setup = fermeture_lancee.clone();
     let nettoyage_setup = nettoyage_termine.clone();

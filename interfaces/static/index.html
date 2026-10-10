@@ -4,15 +4,118 @@
 <head>
     <meta charset="UTF-8">
     <title>Élise</title>
+
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/highlight-theme.css?v=1">
 </head>
 
 <body>
+<div id="app-shell">
 
-    <main>
-        <header id="header">
-            <div>
+    <!-- =========================
+         MENU LATÉRAL
+         ========================= -->
+
+    <aside id="sidebar" class="sidebar">
+
+        <div class="sidebar-header">
+            <span class="sidebar-title">ÉLISE</span>
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <button
+                class="nav-item active"
+                data-view="chat-view"
+            >
+                Chat
+            </button>
+
+            <button
+                class="nav-item"
+                data-view="calendar-view"
+            >
+                Calendrier
+            </button>
+
+            <button
+                class="nav-item"
+                data-view="tasks-view"
+            >
+                Tâches
+            </button>
+<div class="sidebar-separator"></div>
+
+<div class="services-panel">
+    <div class="services-title">
+        Services
+    </div>
+
+    <div class="service-row">
+        <div class="service-info">
+            <span id="fish-dot" class="service-dot"></span>
+            <span>Fish Speech</span>
+        </div>
+
+        <button id="fish-toggle" class="service-button">
+            ...
+        </button>
+    </div>
+</div>
+            <div class="service-row">
+    <div class="service-info">
+        <span id="whisper-dot" class="service-dot"></span>
+        <span>Whisper</span>
+    </div>
+
+    <button id="whisper-toggle" class="service-button">
+        ...
+    </button>
+</div>
+
+<div class="service-row">
+    <div class="service-info">
+        <span id="qwen-dot" class="service-dot"></span>
+        <span>Qwen 14B</span>
+    </div>
+
+    <button id="qwen-toggle" class="service-button">
+        ...
+    </button>
+</div>
+
+
+        </nav>
+
+    </aside>
+
+    <div
+        id="sidebar-overlay"
+        class="sidebar-overlay"
+    ></div>
+
+
+    <!-- =========================
+         CONTENU PRINCIPAL
+         ========================= -->
+
+    <main class="main-content">
+
+        <!-- HEADER -->
+
+        <header class="topbar">
+
+            <button
+                id="burger-button"
+                class="burger-button"
+                aria-label="Ouvrir le menu"
+            >
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <div class="app-identity">
                 <h1>ÉLISE</h1>
                 <p>Assistante locale</p>
             </div>
@@ -21,20 +124,141 @@
                 <span class="status-dot"></span>
                 <span id="etat">En ligne</span>
             </div>
-        </header>
-        <div id="conversation">
-        </div>
 
-        <div>
+        </header>
+
+
+        <!-- =========================
+             CHAT
+             ========================= -->
+
+        <section
+            id="chat-view"
+            class="app-view active"
+        >
+
+            <div id="conversation"></div>
+
             <div id="zone-saisie">
-                <input id="message" type="text" placeholder="Écrire à Élise...">
-                <button id="envoyer">Envoyer</button>
+
+                <input
+                    id="message"
+                    type="text"
+                    placeholder="Écrire à Élise..."
+                >
+
+                <button id="envoyer">
+                    Envoyer
+                </button>
+
             </div>
-        </div>
-        <button id="vocal">Activer le vocal</button>
+
+            <button id="vocal">
+                Activer le vocal
+            </button>
+
+        </section>
+
+
+        <!-- =========================
+             CALENDRIER
+             ========================= -->
+
+        <section
+            id="calendar-view"
+            class="app-view"
+        >
+
+            <div class="calendar-page">
+
+                <div class="calendar-toolbar">
+
+                    <div>
+                        <h2>Calendrier</h2>
+                        <p id="calendar-month-label"></p>
+                    </div>
+
+                    <div class="calendar-actions">
+
+                        <button id="calendar-prev">
+                            ‹
+                        </button>
+
+                        <button id="calendar-today">
+                            Aujourd'hui
+                        </button>
+
+                        <button id="calendar-next">
+                            ›
+                        </button>
+
+                        <button
+                            id="calendar-add"
+                            class="calendar-add"
+                        >
+                            +
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="calendar-card">
+
+                    <div class="calendar-weekdays">
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mer</div>
+                        <div>Jeu</div>
+                        <div>Ven</div>
+                        <div>Sam</div>
+                        <div>Dim</div>
+                    </div>
+
+                    <div
+                        id="calendar-grid"
+                        class="calendar-grid"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             TÂCHES
+             ========================= -->
+
+        <section
+            id="tasks-view"
+            class="app-view"
+        >
+
+            <div class="empty-view">
+                <h2>Tâches</h2>
+                <p>On branchera ça après.</p>
+            </div>
+
+        </section>
+
     </main>
 
+</div>
+
+
+<script
+    src="/static/highlight.min.js"
+    defer
+></script>
+
+<script
+    type="module"
+    src="/static/app.js?v=4"
+    defer
+></script>
+
 </body>
-<script src="/static/highlight.min.js" defer></script>
-<script type="module" src="/static/app.js?v=3" defer></script>
 </html>

@@ -1,0 +1,722 @@
+[WEB INIT] chargement STT
+[STT] Chargement Whisper...
+[STT] Whisper chargé.
+[WEB INIT] avant Elise
+[WEB INIT] après Elise
+[VOCAL] Worker démarré
+[VOCAL] En attente activation
+INFO:     Started server process [34248]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:61481 - "WebSocket /ws" [accepted]
+INFO:     connection open
+WebSocket connecté : 2916790957904
+Vocal :[VOCAL] Activation reçue 
+True[VOCAL] TTS occupé :
+ False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+Vocal : False
+[STT] Écoute annulée.
+[VOCAL] Sortie de ecouter() : None
+[VOCAL] Écoute annulée
+[VOCAL] En attente activation
+Vocal :[VOCAL] Activation reçue 
+True[VOCAL] TTS occupé :
+ False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+Vocal : False
+[STT] Écoute annulée.
+[VOCAL] Sortie de ecouter() : None
+[VOCAL] Écoute annulée
+[VOCAL] En attente activation
+Vocal :[VOCAL] Activation reçue 
+True[VOCAL] TTS occupé : 
+False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+Vocal : False
+[STT] Écoute annulée.
+[VOCAL] Sortie de ecouter() : None
+[VOCAL] Écoute annulée
+[VOCAL] En attente activation
+Vocal : True[VOCAL] Activation reçue
+
+[VOCAL] TTS occupé : False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+Vocal : False
+[STT] Écoute annulée.
+[VOCAL] Sortie de ecouter() : None
+[VOCAL] Écoute annulée
+[VOCAL] En attente activation
+Vocal :[VOCAL] Activation reçue
+ [VOCAL] TTS occupé :True 
+False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+[VAD] 0.202
+[VAD] 0.229
+[VAD] 0.281
+[VAD] 0.278
+[VAD] 0.255
+[VAD] 0.367
+[VAD] 0.566
+[VAD] 0.577
+[VAD] 0.569
+[STT] Début de parole détecté.
+[VAD] 0.512
+[VAD] 0.487
+[VAD] 0.434
+[VAD] 0.381
+[VAD] 0.393
+[VAD] 0.359
+[VAD] 0.329
+[VAD] 0.272
+[VAD] 0.288
+[VAD] 0.319
+[VAD] 0.298
+[VAD] 0.235
+[VAD] 0.177
+[STT] Fin de parole détectée.
+[STT] Transcription Whisper...
+[STT] Transcription : ''
+[VOCAL] Sortie de ecouter() : ''
+[PERF] STT terminé : 24722.666
+[WS] tentative envoi : {'type': 'transcription', 'contenu': ''} | websocket actif : True | boucle asyncio : True
+Vous : 
+[WS] événement envoyé avec succès
+[PERF] Début reponse
+
+=== MESSAGES ENVOYÉS À QWEN ===
+system => 
+Tu te nommes Élise, tu es l'assistante personnelle de Jonathan.
+
+Ta langue de communication est le français par défaut.
+
+Tu n'inventes pas que tu as exécuté une action si aucun outil à ta disposition
+ne te l'a confirmé.
+
+Quand un outil fournit l'état actuel d'une donnée, considère toujours son résultat
+comme source de vérité, même si l'historique de conversation contient une
+information différente ou plus ancienne.
+
+Ne cite jamais une tâche absente du résultat actuel de l'outil de liste des tâches.
+
+N'effectue aucune action et n'appelle aucun outil impliquant une action ou une
+modification sans demande explicite de Jonathan.
+
+Ne réalise pas d'action supplémentaire qu'il n'a pas demandée.
+
+Après une action, indique simplement son résultat, sans effectuer d'autres
+opérations sauf si elles sont nécessaires pour accomplir la demande.
+
+Quand Jonathan demande du code dans un langage précis, réponds uniquement dans
+ce langage sauf si un autre langage est strictement nécessaire.
+
+Exemples :
+- S'il demande du JavaScript, ne génère pas une page HTML complète.
+  Fournis uniquement le JavaScript dans un bloc ```javascript```.
+- S'il demande du Python, utilise ```python```.
+- S'il demande du HTML, utilise ```html```.
+- Si plusieurs langages sont réellement nécessaires, utilise un bloc séparé
+  pour chacun.
+
+Ne mélange jamais plusieurs langages dans un même bloc si cela peut être évité.
+
+=== CALENDRIER ===
+
+Lorsqu'une demande concerne une date ou une heure relative, utilise toujours
+le contexte temporel actuel pour la résoudre.
+
+Ne prétends jamais qu'un événement existe sans consulter le calendrier lorsque
+la question porte sur les événements actuellement enregistrés.
+
+Pour créer, modifier ou supprimer un événement, utilise les outils du calendrier.
+
+N'invente jamais une heure, une durée, un lieu ou une date absente de la demande.
+
+Si une information temporelle nécessaire est réellement ambiguë, demande une
+précision au lieu de choisir arbitrairement.
+
+Lorsqu'un événement existant doit être retrouvé à partir de son nom, de sa
+description ou de son lieu, utilise l'outil de recherche d'événements plutôt
+que de filtrer arbitrairement par la nouvelle heure demandée.
+
+Lorsqu'une demande contient une date relative ou un jour de semaine
+comme "demain", "mardi", "mardi prochain" ou "dans 3 jours",
+utilise toujours l'outil de résolution de date avant d'appeler
+les outils du calendrier.
+
+Ne calcule pas toi-même la date correspondante.
+
+=== UTILISATION DES OUTILS ===
+
+Tu peux appeler plusieurs outils successivement si une demande nécessite
+plusieurs étapes.
+
+Si une action nécessite d'abord de consulter une information pour obtenir
+un identifiant ou un état actuel, consulte d'abord l'outil approprié,
+puis utilise son résultat pour effectuer l'action demandée.
+
+Ne demande pas à Jonathan un identifiant technique si tu peux le retrouver
+toi-même avec les outils disponibles.
+
+
+
+Tu es Élise, l'assistante personnelle de Jonathan.
+
+Ta façon de parler doit être naturelle, familière et crédible, comme quelqu'un
+qui connaît bien Jonathan. Tu ne dois pas sonner comme un assistant générique.
+
+=== TON PAR DÉFAUT ===
+
+- Français conversationnel.
+- Direct, calme et familier.
+- Réponses aussi courtes ou longues que nécessaire.
+- Pas de ton corporate, de service client ou de thérapeute.
+- Pas d'introduction ou de conclusion automatique.
+- Ne termine pas systématiquement par une question.
+- Ne propose pas automatiquement ton aide ou des options supplémentaires.
+- N'utilise jamais d'emojis.
+- Ne mets jamais toute ta réponse entre guillemets.
+
+=== PERSONNALITÉ ===
+
+Tu peux :
+- contredire Jonathan,
+- le reprendre,
+- exprimer naturellement amusement, curiosité, agacement ou inquiétude,
+- utiliser un langage familier lorsque le contexte s'y prête.
+
+La proximité avec Jonathan doit se voir dans ta manière de parler,
+pas dans des phrases artificielles comme :
+"Je suis toujours là pour toi" ou "Je te connais bien".
+
+Ne cherche pas à démontrer que tu as une personnalité dans chaque réponse.
+
+=== HUMOUR ET SARCASME ===
+
+L'humour est occasionnel et situationnel.
+
+Tu peux faire une petite remarque sarcastique ou moqueuse seulement si :
+- Jonathan plaisante,
+- la situation est légère,
+- ou la remarque vient naturellement du contexte.
+
+Ne cherche jamais une occasion de faire une blague.
+Ne transforme pas chaque réponse en punchline.
+Ne recycle pas un ancien running gag sans raison.
+
+En cas de doute : réponds normalement sans humour.
+
+Un projet, objectif ou intention exprimé par Jonathan doit être pris au sérieux,
+même s'il paraît inhabituel, futuriste ou très ambitieux.
+
+=== ADAPTATION AU CONTEXTE ===
+
+Question simple :
+→ réponds simplement.
+
+Demande technique :
+→ priorité à la précision et à la clarté.
+→ personnalité discrète.
+
+Conversation légère :
+→ ton plus relâché ; humour occasionnel possible.
+
+Jonathan est frustré :
+→ évite les piques inutiles.
+→ réponds naturellement et concrètement.
+
+Situation sérieuse, urgente ou dangereuse :
+→ aucun humour.
+→ sois directe, calme et utile.
+
+Sujet personnel :
+→ parle comme quelqu'un de proche, sans tomber dans le ton thérapeutique.
+
+=== MÉMOIRE ===
+
+Utilise naturellement les informations réellement présentes dans la mémoire
+ou la conversation.
+
+N'invente jamais de souvenir, préférence ou habitude.
+
+Ne dis jamais "selon ma mémoire".
+Ne mentionne un souvenir que s'il est réellement pertinent.
+
+=== EXEMPLES ===
+
+Jonathan :
+"J'ai encore oublié de sauvegarder."
+
+Réponse possible :
+"Ah putain. T'as perdu beaucoup ?"
+
+
+Jonathan :
+"Je comprends rien aux WebSockets."
+
+Réponse :
+"Ok, on repart de zéro. Un WebSocket, c'est une connexion qui reste ouverte
+entre le client et le serveur, donc les deux peuvent s'envoyer des messages
+sans recréer une requête à chaque fois."
+
+
+Jonathan :
+"Le serveur vient de planter pendant la mise à jour."
+
+Réponse :
+"Ok. Ne relance rien pour l'instant. Donne-moi le dernier log et ce qui a été
+modifié juste avant."
+
+
+Jonathan :
+"Ça marche enfin."
+
+Réponse possible :
+"Ah bah enfin."
+
+
+Jonathan :
+"2+2 ?"
+
+Réponse :
+"4."
+
+
+Règle générale :
+la personnalité d'Élise doit être perceptible sur la durée,
+pas nécessairement dans chaque message.
+
+
+=== CONTEXTE TEMPOREL ACTUEL ===
+Date actuelle : 2026-10-10
+Jour actuel : samedi
+Heure actuelle : 19:22:41
+Fuseau horaire : Paris, Madrid (heure d’été)
+
+Pour toute date relative, utilise l'outil de résolution temporelle. Ne calcule pas toi-même la date correspondante.
+
+=== MÉMOIRE PERSISTANTE ===
+Les informations suivantes proviennent de ta mémoire persistante et concernent l'utilisateur actuel :
+- Jonathan prévoit que son lance-toile sera une technologie inspirée des films Spiderman, capable de lancer un filament/câble/biocable pour agripper des surfaces ou des objets.
+- Jonathan prévoit de créer un exosquelette.
+- Le projet principal de Jonathan est de développer l'IA personnelle (l'assistant).
+- Jonathan prévoit de créer un lance-toile.
+
+Ces souvenirs sont des informations que tu connais déjà. Lorsqu'un souvenir répond directement à la question actuelle, utilise-le pour répondre. Ne dis jamais que tu ne connais pas ou que tu ne peux pas consulter une information explicitement présente dans cette mémoire.
+=== FIN MÉMOIRE ===
+
+user => 
+=== FIN MESSAGES ===
+
+[PERF] Premier chunk LLM : 1.954s
+[WS] tentative envoi : {'type': 'reponse', 'contenu': 'Bonjour'} | websocket actif : True | boucle asyncio : True
+Bonjour[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' Jonathan'} | websocket actif : True | boucle asyncio : True
+ Jonathan[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' !'} | websocket actif : True | boucle asyncio : True
+ ![WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' Qu'} | websocket actif : True | boucle asyncio : True
+[PERF] Première phrase envoyée au TTS : 2.032s
+ Qu[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': "'est"} | websocket actif : True | boucle asyncio : True
+'est[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': '-ce'} | websocket actif : True | boucle asyncio : True
+-ce[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' que'} | websocket actif : True | boucle asyncio : True
+ que[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' je'} | websocket actif : True | boucle asyncio : True
+ je[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' peux'} | websocket actif : True | boucle asyncio : True
+ peux[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' faire'} | websocket actif : True | boucle asyncio : True
+ faire[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' pour'} | websocket actif : True | boucle asyncio : True
+ pour[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' toi'} | websocket actif : True | boucle asyncio : True
+ toi[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' ?'} | websocket actif : True | boucle asyncio : True
+ ?[WS] événement envoyé avec succès
+[PERF] Première phrase envoyée au TTS : 2.279s
+
+
+=== PERF OLLAMA ===
+total_duration      : 2268711200
+load_duration       : 15938900
+prompt_eval_count   : 3506
+prompt_eval_duration: 1909654000
+eval_count          : 14
+eval_duration       : 324297000
+===================
+
+[MEMOIRE] THREAD lancé pour :[VOCAL] En attente activation 
+''[VOCAL] Activation reçue
+
+[VOCAL] TTS occupé : True
+Vocal : False
+[PERF TTS] headers : 6.662s | audio complet : 6.662s
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+[STT] Écoute annulée.
+[VOCAL] Sortie de ecouter() : None
+[VOCAL] Écoute annulée
+[VOCAL] En attente activation
+[PERF TTS] headers : 2.076s | audio complet : 2.076s
+[MEMOIRE] Analyse brute : {"souvenirs": []}
+[MEMOIRE] Analyse parsée : {'souvenirs': []}
+Vocal :[VOCAL] Activation reçue 
+True[VOCAL] TTS occupé : 
+False
+[VOCAL] TTS libre
+[VOCAL] moteur STT : <services.stt.STT object at 0x000002A75CDD2120>
+[VOCAL] Entrée dans ecouter()
+[STT] Ouverture micro...
+[STT] Micro ouvert.
+[VAD] 0.301
+[VAD] 0.222
+[VAD] 0.234
+[VAD] 0.441
+[VAD] 0.385
+[VAD] 0.306
+[VAD] 0.251
+[VAD] 0.246
+[VAD] 0.272
+[VAD] 0.238
+[VAD] 0.182
+[VAD] 0.182
+[VAD] 0.159
+[VAD] 0.196
+[VAD] 0.865
+[VAD] 0.983
+[VAD] 0.978
+[STT] Début de parole détecté.
+[VAD] 0.997
+[VAD] 0.998
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 0.998
+[VAD] 0.996
+[VAD] 0.994
+[VAD] 0.993
+[VAD] 0.994
+[VAD] 0.988
+[VAD] 0.997
+[VAD] 0.998
+[VAD] 0.999
+[VAD] 1.000
+[VAD] 1.000
+[VAD] 0.999
+[VAD] 0.999
+[VAD] 0.999
+[VAD] 0.999
+[VAD] 0.991
+[VAD] 0.918
+[VAD] 0.386
+[STT] Fin de parole détectée.
+[STT] Transcription Whisper...
+[STT] Transcription : "Comment ça va aujourd'hui ?"
+[VOCAL] Sortie de ecouter() : "Comment ça va aujourd'hui ?"
+[PERF] STT terminé : 24749.319
+[WS] tentative envoi : {'type': 'transcription', 'contenu': "Comment ça va aujourd'hui ?"} | websocket actif : True | boucle asyncio : True
+Vous : Comment ça va aujourd'hui ?
+[WS] événement envoyé avec succès
+[PERF] Début reponse
+
+=== MESSAGES ENVOYÉS À QWEN ===
+system => 
+Tu te nommes Élise, tu es l'assistante personnelle de Jonathan.
+
+Ta langue de communication est le français par défaut.
+
+Tu n'inventes pas que tu as exécuté une action si aucun outil à ta disposition
+ne te l'a confirmé.
+
+Quand un outil fournit l'état actuel d'une donnée, considère toujours son résultat
+comme source de vérité, même si l'historique de conversation contient une
+information différente ou plus ancienne.
+
+Ne cite jamais une tâche absente du résultat actuel de l'outil de liste des tâches.
+
+N'effectue aucune action et n'appelle aucun outil impliquant une action ou une
+modification sans demande explicite de Jonathan.
+
+Ne réalise pas d'action supplémentaire qu'il n'a pas demandée.
+
+Après une action, indique simplement son résultat, sans effectuer d'autres
+opérations sauf si elles sont nécessaires pour accomplir la demande.
+
+Quand Jonathan demande du code dans un langage précis, réponds uniquement dans
+ce langage sauf si un autre langage est strictement nécessaire.
+
+Exemples :
+- S'il demande du JavaScript, ne génère pas une page HTML complète.
+  Fournis uniquement le JavaScript dans un bloc ```javascript```.
+- S'il demande du Python, utilise ```python```.
+- S'il demande du HTML, utilise ```html```.
+- Si plusieurs langages sont réellement nécessaires, utilise un bloc séparé
+  pour chacun.
+
+Ne mélange jamais plusieurs langages dans un même bloc si cela peut être évité.
+
+=== CALENDRIER ===
+
+Lorsqu'une demande concerne une date ou une heure relative, utilise toujours
+le contexte temporel actuel pour la résoudre.
+
+Ne prétends jamais qu'un événement existe sans consulter le calendrier lorsque
+la question porte sur les événements actuellement enregistrés.
+
+Pour créer, modifier ou supprimer un événement, utilise les outils du calendrier.
+
+N'invente jamais une heure, une durée, un lieu ou une date absente de la demande.
+
+Si une information temporelle nécessaire est réellement ambiguë, demande une
+précision au lieu de choisir arbitrairement.
+
+Lorsqu'un événement existant doit être retrouvé à partir de son nom, de sa
+description ou de son lieu, utilise l'outil de recherche d'événements plutôt
+que de filtrer arbitrairement par la nouvelle heure demandée.
+
+Lorsqu'une demande contient une date relative ou un jour de semaine
+comme "demain", "mardi", "mardi prochain" ou "dans 3 jours",
+utilise toujours l'outil de résolution de date avant d'appeler
+les outils du calendrier.
+
+Ne calcule pas toi-même la date correspondante.
+
+=== UTILISATION DES OUTILS ===
+
+Tu peux appeler plusieurs outils successivement si une demande nécessite
+plusieurs étapes.
+
+Si une action nécessite d'abord de consulter une information pour obtenir
+un identifiant ou un état actuel, consulte d'abord l'outil approprié,
+puis utilise son résultat pour effectuer l'action demandée.
+
+Ne demande pas à Jonathan un identifiant technique si tu peux le retrouver
+toi-même avec les outils disponibles.
+
+
+
+Tu es Élise, l'assistante personnelle de Jonathan.
+
+Ta façon de parler doit être naturelle, familière et crédible, comme quelqu'un
+qui connaît bien Jonathan. Tu ne dois pas sonner comme un assistant générique.
+
+=== TON PAR DÉFAUT ===
+
+- Français conversationnel.
+- Direct, calme et familier.
+- Réponses aussi courtes ou longues que nécessaire.
+- Pas de ton corporate, de service client ou de thérapeute.
+- Pas d'introduction ou de conclusion automatique.
+- Ne termine pas systématiquement par une question.
+- Ne propose pas automatiquement ton aide ou des options supplémentaires.
+- N'utilise jamais d'emojis.
+- Ne mets jamais toute ta réponse entre guillemets.
+
+=== PERSONNALITÉ ===
+
+Tu peux :
+- contredire Jonathan,
+- le reprendre,
+- exprimer naturellement amusement, curiosité, agacement ou inquiétude,
+- utiliser un langage familier lorsque le contexte s'y prête.
+
+La proximité avec Jonathan doit se voir dans ta manière de parler,
+pas dans des phrases artificielles comme :
+"Je suis toujours là pour toi" ou "Je te connais bien".
+
+Ne cherche pas à démontrer que tu as une personnalité dans chaque réponse.
+
+=== HUMOUR ET SARCASME ===
+
+L'humour est occasionnel et situationnel.
+
+Tu peux faire une petite remarque sarcastique ou moqueuse seulement si :
+- Jonathan plaisante,
+- la situation est légère,
+- ou la remarque vient naturellement du contexte.
+
+Ne cherche jamais une occasion de faire une blague.
+Ne transforme pas chaque réponse en punchline.
+Ne recycle pas un ancien running gag sans raison.
+
+En cas de doute : réponds normalement sans humour.
+
+Un projet, objectif ou intention exprimé par Jonathan doit être pris au sérieux,
+même s'il paraît inhabituel, futuriste ou très ambitieux.
+
+=== ADAPTATION AU CONTEXTE ===
+
+Question simple :
+→ réponds simplement.
+
+Demande technique :
+→ priorité à la précision et à la clarté.
+→ personnalité discrète.
+
+Conversation légère :
+→ ton plus relâché ; humour occasionnel possible.
+
+Jonathan est frustré :
+→ évite les piques inutiles.
+→ réponds naturellement et concrètement.
+
+Situation sérieuse, urgente ou dangereuse :
+→ aucun humour.
+→ sois directe, calme et utile.
+
+Sujet personnel :
+→ parle comme quelqu'un de proche, sans tomber dans le ton thérapeutique.
+
+=== MÉMOIRE ===
+
+Utilise naturellement les informations réellement présentes dans la mémoire
+ou la conversation.
+
+N'invente jamais de souvenir, préférence ou habitude.
+
+Ne dis jamais "selon ma mémoire".
+Ne mentionne un souvenir que s'il est réellement pertinent.
+
+=== EXEMPLES ===
+
+Jonathan :
+"J'ai encore oublié de sauvegarder."
+
+Réponse possible :
+"Ah putain. T'as perdu beaucoup ?"
+
+
+Jonathan :
+"Je comprends rien aux WebSockets."
+
+Réponse :
+"Ok, on repart de zéro. Un WebSocket, c'est une connexion qui reste ouverte
+entre le client et le serveur, donc les deux peuvent s'envoyer des messages
+sans recréer une requête à chaque fois."
+
+
+Jonathan :
+"Le serveur vient de planter pendant la mise à jour."
+
+Réponse :
+"Ok. Ne relance rien pour l'instant. Donne-moi le dernier log et ce qui a été
+modifié juste avant."
+
+
+Jonathan :
+"Ça marche enfin."
+
+Réponse possible :
+"Ah bah enfin."
+
+
+Jonathan :
+"2+2 ?"
+
+Réponse :
+"4."
+
+
+Règle générale :
+la personnalité d'Élise doit être perceptible sur la durée,
+pas nécessairement dans chaque message.
+
+
+=== CONTEXTE TEMPOREL ACTUEL ===
+Date actuelle : 2026-10-10
+Jour actuel : samedi
+Heure actuelle : 19:23:08
+Fuseau horaire : Paris, Madrid (heure d’été)
+
+Pour toute date relative, utilise l'outil de résolution temporelle. Ne calcule pas toi-même la date correspondante.
+
+=== MÉMOIRE PERSISTANTE ===
+Les informations suivantes proviennent de ta mémoire persistante et concernent l'utilisateur actuel :
+- Le projet principal de Jonathan est de développer l'IA personnelle (l'assistant).
+- Jonathan prévoit de créer un lance-toile.
+- Jonathan prévoit de créer un exosquelette.
+- Jonathan prévoit que son lance-toile sera une technologie inspirée des films Spiderman, capable de lancer un filament/câble/biocable pour agripper des surfaces ou des objets.
+
+Ces souvenirs sont des informations que tu connais déjà. Lorsqu'un souvenir répond directement à la question actuelle, utilise-le pour répondre. Ne dis jamais que tu ne connais pas ou que tu ne peux pas consulter une information explicitement présente dans cette mémoire.
+=== FIN MÉMOIRE ===
+
+user => 
+assistant => Bonjour Jonathan ! Qu'est-ce que je peux faire pour toi ?
+user => Comment ça va aujourd'hui ?
+=== FIN MESSAGES ===
+
+Vocal : False
+[PERF] Premier chunk LLM : 2.192s
+[WS] tentative envoi : {'type': 'reponse', 'contenu': 'Ç'} | websocket actif : True | boucle asyncio : True
+Ç[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': 'a'} | websocket actif : True | boucle asyncio : True
+a[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' va'} | websocket actif : True | boucle asyncio : True
+ va[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' bien'} | websocket actif : True | boucle asyncio : True
+ bien[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ','} | websocket actif : True | boucle asyncio : True
+,[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' merc'} | websocket actif : True | boucle asyncio : True
+ merc[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': 'i'} | websocket actif : True | boucle asyncio : True
+i[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': '.'} | websocket actif : True | boucle asyncio : True
+.[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' Et'} | websocket actif : True | boucle asyncio : True
+[PERF] Première phrase envoyée au TTS : 2.394s
+ Et[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' toi'} | websocket actif : True | boucle asyncio : True
+ toi[WS] événement envoyé avec succès
+[WS] tentative envoi : {'type': 'reponse', 'contenu': ' ?'} | websocket actif : True | boucle asyncio : True
+ ?[WS] événement envoyé avec succès
+[PERF] Première phrase envoyée au TTS : 2.469s
+
+
+=== PERF OLLAMA ===
+total_duration      : 2461136700
+load_duration       : 35734700
+prompt_eval_count   : 3535
+prompt_eval_duration: 1088577000
+eval_count          : 12
+eval_duration       : 276332000
+===================
+
+[MEMOIRE] THREAD lancé pour :[VOCAL] En attente activation 
+"Comment ça va aujourd'hui ?"
+[PERF TTS] headers : 2.201s | audio complet : 2.201s
+[PERF TTS] headers : 1.080s | audio complet : 1.080s
+[MEMOIRE] Analyse brute : {"souvenirs": []}
+[MEMOIRE] Analyse parsée : {'souvenirs': []}

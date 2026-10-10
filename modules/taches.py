@@ -1,4 +1,4 @@
-from . import function
+from . import functions as function
 import difflib
 
 
