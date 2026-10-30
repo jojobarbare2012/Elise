@@ -58,14 +58,14 @@ def lancer_web():
             "-m",
             "uvicorn",
             "interfaces.web:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8000",
             "--no-access-log"
         ],
         cwd=RACINE_PROJET,
-
-        # Le Web n'hérite plus du stdin du launcher/Tauri
         stdin=subprocess.DEVNULL,
-
-        # Et ses logs vont dans son propre fichier
         stdout=log,
         stderr=subprocess.STDOUT
     )
