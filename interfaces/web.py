@@ -17,7 +17,7 @@ from modules.calendrier import (outil_ajouter_evenement,
 from fastapi.responses import FileResponse, StreamingResponse
 from queue import Queue
 from fastapi.staticfiles import StaticFiles
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from services import stt, tts
 import asyncio
 from services import fish, ollama
@@ -90,7 +90,8 @@ gestionnaire_tts.callback_debut_lecture = (
 gestionnaire_tts.callback_fin_lecture = (
     lambda: assistant.etat.changer("IDLE")
 )
-websocket_actif = None
+websockets_actifs = set()
+verrou_websockets = Lock()
 boucle_asyncio = None
 
 
@@ -301,31 +302,38 @@ def envoyer_au_tts(phrase):
 
 
 def envoyer_evenement_websocket(evenement):
+    with verrou_websockets:
+        clients = list(websockets_actifs)
+
     print(
         "[WS] tentative envoi :",
         evenement,
-        "| websocket actif :",
-        websocket_actif is not None,
+        "| clients connectés :",
+        len(clients),
         "| boucle asyncio :",
         boucle_asyncio is not None,
         flush=True
     )
-    if websocket_actif is None or boucle_asyncio is None:
+    if not clients or boucle_asyncio is None:
         return
 
-    futur = asyncio.run_coroutine_threadsafe(
-        websocket_actif.send_json(evenement),
-        boucle_asyncio
-    )
+    for client in clients:
+        futur = asyncio.run_coroutine_threadsafe(
+            client.send_json(evenement),
+            boucle_asyncio
+        )
 
-    def verifier_envoi(futur):
-        try:
-            futur.result()
-            print("[WS] événement envoyé avec succès", flush=True)
-        except Exception as erreur:
-            print("[WS] ERREUR ENVOI :", repr(erreur), flush=True)
+        def verifier_envoi(futur, client=client):
+            try:
+                futur.result()
+                print("[WS] événement envoyé avec succès", flush=True)
+            except Exception as erreur:
+                print("[WS] ERREUR ENVOI :", repr(erreur), flush=True)
 
-    futur.add_done_callback(verifier_envoi)
+                with verrou_websockets:
+                    websockets_actifs.discard(client)
+
+        futur.add_done_callback(verifier_envoi)
 
 @app.get("/")
 def afficher_interface():
@@ -357,14 +365,22 @@ def desactive_vocal():
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    global websocket_actif, boucle_asyncio
+    global boucle_asyncio
 
     await websocket.accept()
 
-    websocket_actif = websocket
     boucle_asyncio = asyncio.get_running_loop()
 
-    print("WebSocket connecté :", id(websocket))
+    with verrou_websockets:
+        websockets_actifs.add(websocket)
+        nombre_clients = len(websockets_actifs)
+
+    print(
+        "WebSocket connecté :",
+        id(websocket),
+        "| clients :",
+        nombre_clients
+    )
 
     try:
         while True:
@@ -373,8 +389,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         print("WebSocket déconnecté :", id(websocket))
 
-        if websocket_actif is websocket:
-            websocket_actif = None
+    finally:
+        with verrou_websockets:
+            websockets_actifs.discard(websocket)
 
 @app.get("/health")
 def health():
