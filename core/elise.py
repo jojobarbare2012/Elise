@@ -738,21 +738,27 @@ class Elise:
             # ------------------------------------------------------------
 
             tour_outils = 0
-            max_tours_outils = 5
 
-            while tool_calls and tour_outils < max_tours_outils:
+            while tool_calls and tour_outils < MAX_TOURS_OUTILS:
                 tour_outils += 1
 
                 print(
-                    f"[TOOLS] Tour {tour_outils}/{max_tours_outils}",
+                    f"[TOOLS] Tour {tour_outils}/{MAX_TOURS_OUTILS}",
                     flush=True
                 )
 
                 self._executer_outils(tool_calls)
 
+                # Système enrichi (date + mémoire) + historique à jour.
+                # self.conversation reste sans contexte temporaire.
+                messages_tour = (
+                    [messages_pour_reponse[0]]
+                    + self.conversation[1:]
+                )
+
                 stream = ollama.chat(
                     model=self.model,
-                    messages=self.conversation,
+                    messages=messages_tour,
                     tools=self.outils,
                     stream=True,
                     options={
