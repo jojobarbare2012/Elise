@@ -527,9 +527,23 @@ class Elise:
                     flush=True
                 )
 
-                resultat = fonction_cible(
-                    **call.function.arguments
-                )
+                try:
+                    resultat = fonction_cible(
+                        **call.function.arguments
+                    )
+
+                except Exception as erreur:
+                    print(
+                        "[TOOL ERROR]",
+                        call.function.name,
+                        repr(erreur),
+                        flush=True
+                    )
+
+                    resultat = {
+                        "succes": False,
+                        "erreur": f"{type(erreur).__name__} : {erreur}"
+                    }
 
                 print(
                     "[TOOL RESULT]",
