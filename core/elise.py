@@ -6,7 +6,6 @@ from .memoire import (
     analyser_message_pour_memoire,
     traiter_nouveau_souvenir,
     trouver_souvenirs_similaires,
-    recuperer_derniere_modification_en_attente,
     appliquer_modification_en_attente,
     annuler_modification_en_attente
 )
@@ -157,7 +156,9 @@ def filtrer_code_pour_tts(texte, dans_bloc_code):
 
 
 def normaliser_reponse_confirmation(message: str):
-    message = message.strip().lower()
+    # "Oui." (Whisper), " OK ! " → "oui", "ok"
+    message = message.lower().strip(" \t\n.!?,;…")
+    message = " ".join(message.split())
 
     if message in REPONSES_POSITIVES:
         return True
@@ -166,6 +167,24 @@ def normaliser_reponse_confirmation(message: str):
         return False
 
     return None
+
+
+def construire_texte_confirmation(confirmation):
+    # Les souvenirs finissent souvent par un point : on l'enlève
+    # pour éviter « ... . ». dans la phrase.
+    anciens = [
+        souvenir["contenu"].rstrip(" .")
+        for souvenir in confirmation["anciens_souvenirs"]
+    ]
+    nouveau = confirmation["nouveau_souvenir"]["contenu"].rstrip(" .")
+
+    texte_anciens = " ".join(f"« {ancien} »" for ancien in anciens)
+
+    return (
+        f"Tu m'avais dit : {texte_anciens}. "
+        f"Nouvelle information : « {nouveau} ». "
+        "Je mets à jour ma mémoire ?"
+    )
 
 def extraire_segments_tts(
     buffer,
@@ -377,6 +396,9 @@ class Elise:
         self.debut_reponse = None
         # Une seule réponse à la fois (vocal, PC, téléphone).
         self.verrou_reponse = Lock()
+        # Modification mémoire proposée à l'utilisateur, valable
+        # uniquement pour son prochain message.
+        self.id_modification_proposee = None
         initialiser_memoire()
 
 
@@ -594,10 +616,9 @@ class Elise:
         if confirmation is None:
             return
 
-        texte_confirmation = (
-            "Cette nouvelle information remplace un souvenir important. "
-            "Veux-tu que je mette à jour ma mémoire ?"
-        )
+        self.id_modification_proposee = confirmation["id_modification"]
+
+        texte_confirmation = construire_texte_confirmation(confirmation)
 
         if callback_confirmation:
             callback_confirmation(texte_confirmation)
@@ -642,12 +663,24 @@ class Elise:
             callback_fin=None,
             callback_confirmation=None
     ):
-        modification = recuperer_derniere_modification_en_attente()
+        id_modification = self.id_modification_proposee
 
-        if modification is not None:
+        if id_modification is not None:
+            # La question ne vaut que pour ce message : on la consomme.
+            self.id_modification_proposee = None
+
             confirmation = normaliser_reponse_confirmation(message)
 
-            if confirmation is not None:
+            if confirmation is None:
+                # Question ignorée : dans le doute, on ne modifie pas.
+                annuler_modification_en_attente(id_modification)
+
+                print(
+                    "[MEMOIRE] Question ignorée, modification annulée.",
+                    flush=True
+                )
+
+            else:
                 self.conversation.append({
                     "role": "user",
                     "content": message
@@ -655,13 +688,13 @@ class Elise:
 
                 if confirmation:
                     appliquer_modification_en_attente(
-                        modification["id"]
+                        id_modification
                     )
                     texte_confirmation = "Mémoire mise à jour."
 
                 else:
                     annuler_modification_en_attente(
-                        modification["id"]
+                        id_modification
                     )
                     texte_confirmation = "Modification de mémoire annulée."
 
