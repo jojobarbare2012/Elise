@@ -18,3 +18,18 @@ data/liste_tache.json
 
 .env
 
+# Dépendances Node (restaurées par `npm install` via package-lock.json)
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Fichiers temporaires (le dossier est gardé grâce à .gitkeep,
+# car stt.py écrit dans data/temp/ sans le créer)
+data/temp/*
+!data/temp/.gitkeep
+
+# Données personnelles d'Élise (recréées automatiquement si absentes)
+data/memoire.db
+data/calendrier.db
