@@ -116,6 +116,39 @@ def web_est_pret():
         return False
 
 
+def trouver_pids_ecoute(sortie_netstat, port):
+    """
+    Retourne les PID des processus TCP en écoute sur `port`
+    à partir de la sortie de `netstat -ano`.
+
+    Une ligne en écoute a une adresse distante 0.0.0.0:0 (IPv4)
+    ou [::]:0 (IPv6). Ce critère ne dépend pas de la langue
+    de Windows, contrairement au mot "LISTENING".
+    """
+    pids = []
+
+    for ligne in sortie_netstat.splitlines():
+        colonnes = ligne.split()
+
+        if len(colonnes) < 5 or colonnes[0] != "TCP":
+            continue
+
+        adresse_locale = colonnes[1]
+        adresse_distante = colonnes[2]
+        pid = colonnes[-1]
+
+        if not adresse_locale.endswith(f":{port}"):
+            continue
+
+        if adresse_distante not in ("0.0.0.0:0", "[::]:0"):
+            continue
+
+        if pid != "0" and pid not in pids:
+            pids.append(pid)
+
+    return pids
+
+
 def arreter_port_8000():
     try:
         sortie = subprocess.check_output(
@@ -124,24 +157,24 @@ def arreter_port_8000():
             errors="replace"
         )
 
-        for ligne in sortie.splitlines():
-            if "127.0.0.1:8000" in ligne and "LISTENING" in ligne:
-                pid = ligne.split()[-1]
+        pids = trouver_pids_ecoute(sortie, 8000)
 
-                print(
-                    f"Arrêt du serveur web PID {pid}...",
-                    flush=True
-                )
+        if not pids:
+            print("Aucun serveur web actif sur le port 8000.", flush=True)
+            return False
 
-                subprocess.run(
-                    ["taskkill", "/PID", pid, "/F"],
-                    check=False
-                )
+        for pid in pids:
+            print(
+                f"Arrêt du serveur web PID {pid}...",
+                flush=True
+            )
 
-                return True
+            subprocess.run(
+                ["taskkill", "/PID", pid, "/F"],
+                check=False
+            )
 
-        print("Aucun serveur web actif sur le port 8000.", flush=True)
-        return False
+        return True
 
     except Exception as erreur:
         print(
