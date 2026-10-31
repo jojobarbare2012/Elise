@@ -10,7 +10,7 @@ from .memoire import (
     appliquer_modification_en_attente,
     annuler_modification_en_attente
 )
-from threading import Thread
+from threading import Thread, Lock
 from .personnalite import PROMPT_PERSONNALITE
 
 PROMPT_BASE = """
@@ -375,6 +375,8 @@ class Elise:
         self.etat = EtatElise()
         # dans Elise.__init__
         self.debut_reponse = None
+        # Une seule réponse à la fois (vocal, PC, téléphone).
+        self.verrou_reponse = Lock()
         initialiser_memoire()
 
 
@@ -612,6 +614,27 @@ class Elise:
         return None
 
     def repondre(
+            self,
+            message,
+            callback=None,
+            callback_stream=None,
+            callback_fin=None,
+            callback_confirmation=None
+    ):
+        """
+        Une seule réponse à la fois : les appels concurrents
+        attendent leur tour.
+        """
+        with self.verrou_reponse:
+            return self._repondre(
+                message,
+                callback,
+                callback_stream,
+                callback_fin,
+                callback_confirmation
+            )
+
+    def _repondre(
             self,
             message,
             callback=None,
