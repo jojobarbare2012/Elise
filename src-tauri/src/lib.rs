@@ -1,6 +1,3 @@
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-
-
 use tauri::{Emitter, Manager};
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
@@ -17,6 +14,7 @@ struct LauncherProcess(Mutex<Option<CommandChild>>);
 
 
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let fermeture_lancee = Arc::new(AtomicBool::new(false));
     let nettoyage_termine = Arc::new(AtomicBool::new(false));
