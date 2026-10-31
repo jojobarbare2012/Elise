@@ -133,12 +133,19 @@ def afficher_interface():
 
 
 def worker_reponse(message, file_stream):
-    assistant.repondre(
-        message,
-        callback_stream=lambda morceau: file_stream.put(morceau),
-        callback_confirmation=envoyer_confirmation_memoire
-    )
-    file_stream.put(None)
+    try:
+        assistant.repondre(
+            message,
+            callback_stream=lambda morceau: file_stream.put(morceau),
+            callback_confirmation=envoyer_confirmation_memoire
+        )
+
+    except Exception as erreur:
+        print("[REPONSE] ERREUR :", repr(erreur), flush=True)
+        file_stream.put(f"\n\n*Erreur : {erreur}*")
+
+    finally:
+        file_stream.put(None)
 
 
 def lire_stream(file_stream: FileResponse):
@@ -266,12 +273,18 @@ def worker_vocal():
 
             print("Vous :", message)
 
-            assistant.repondre(
-                message,
-                callback=envoyer_au_tts,
-                callback_stream=envoyer_reponse_websocket,
-                callback_confirmation=envoyer_confirmation_memoire
-            )
+            try:
+                assistant.repondre(
+                    message,
+                    callback=envoyer_au_tts,
+                    callback_stream=envoyer_reponse_websocket,
+                    callback_confirmation=envoyer_confirmation_memoire
+                )
+
+            except Exception as erreur:
+                print("[VOCAL] ERREUR REPONSE :", repr(erreur), flush=True)
+                envoyer_reponse_websocket(f"\n\n*Erreur : {erreur}*")
+                assistant.etat.changer("IDLE")
 
 def envoyer_reponse_websocket(morceau):
 
