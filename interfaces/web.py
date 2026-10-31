@@ -126,10 +126,6 @@ def recevoir_message(donnees: MessageUtilisateur):
         "reponse": reponse
     }
 
-@app.get("/")
-def afficher_interface():
-    return FileResponse("interfaces/static/index.html")
-
 
 
 def worker_reponse(message, file_stream):
