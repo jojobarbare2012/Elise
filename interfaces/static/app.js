@@ -292,7 +292,8 @@ async function basculerVocal() {
 
 boutonVocal.addEventListener("click", basculerVocal);
 
-const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+const protocoleWs = location.protocol === "https:" ? "wss:" : "ws:";
+const socket = new WebSocket(`${protocoleWs}//${location.host}/ws`);
 
 socket.addEventListener("open", () => {
     console.log("WebSocket connecté");
