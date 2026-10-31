@@ -5,7 +5,7 @@ import time
 import re
 
 from queue import Queue
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 
 import sounddevice as sd
 from scipy.io.wavfile import read
@@ -118,6 +118,11 @@ class GestionnaireTTS:
 
         self.en_cours = Event()
 
+        # Nombre de phrases envoyées et pas encore terminées
+        # (en attente, en génération ou en lecture).
+        self._verrou_compteur = Lock()
+        self._phrases_restantes = 0
+
         Thread(
             target=self._worker_generation,
             daemon=True
@@ -137,14 +142,20 @@ class GestionnaireTTS:
         if not phrase:
             return
 
+        with self._verrou_compteur:
+            self._phrases_restantes += 1
+
         self.file_tts.put(phrase)
 
+    def _phrase_terminee(self):
+        with self._verrou_compteur:
+            self._phrases_restantes -= 1
+
     def est_occupe(self):
-        return (
-            self.en_cours.is_set()
-            or not self.file_audio.empty()
-            or not self.file_tts.empty()
-        )
+        with self._verrou_compteur:
+            restantes = self._phrases_restantes
+
+        return restantes > 0 or self.en_cours.is_set()
 
     def _worker_generation(self):
         while True:
@@ -159,6 +170,9 @@ class GestionnaireTTS:
                     "[TTS] Erreur génération :",
                     erreur
                 )
+
+                # Cette phrase ne sera jamais jouée.
+                self._phrase_terminee()
 
             finally:
                 self.file_tts.task_done()
@@ -186,4 +200,5 @@ class GestionnaireTTS:
                     self.callback_fin_lecture()
 
                 self.en_cours.clear()
+                self._phrase_terminee()
                 self.file_audio.task_done()
