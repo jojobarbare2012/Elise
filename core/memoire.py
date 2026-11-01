@@ -16,6 +16,11 @@ TYPES_SOUVENIRS = [
 
 MODELE_MEMOIRE = "qwen3:4b"
 
+# nomic-embed-text est petit (~335 Mo) : on le garde chargé pendant une
+# conversation pour éviter ~1 s de rechargement à chaque message.
+# Ollama le décharge seul après ce délai sans appel.
+DUREE_MAINTIEN_EMBEDDING = "5m"
+
 PROMPT_ANALYSE_MEMOIRE = """
 Tu lis un message de Jonathan et tu extrais les informations sur lui
 qui resteront vraies et utiles dans les jours, semaines ou mois à venir.
@@ -516,7 +521,7 @@ def generer_embedding(texte: str):
     reponse = ollama.embeddings(
         model="nomic-embed-text",
         prompt=texte,
-        keep_alive = 0,
+        keep_alive=DUREE_MAINTIEN_EMBEDDING,
     )
 
     return reponse["embedding"]
