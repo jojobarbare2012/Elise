@@ -13,7 +13,9 @@ from modules.calendrier import (outil_ajouter_evenement,
                                outil_modifier_evenement,
                                outil_supprimer_evenement,
                                outil_rechercher_evenements,
-                               outil_resoudre_date_relative)
+                               outil_resoudre_date_relative,
+                               lister_evenements)
+from fastapi import HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from queue import Queue
 from fastapi.staticfiles import StaticFiles
@@ -181,6 +183,28 @@ def recevoir_message_stream(donnees: MessageUtilisateur):
 def obtenir_etat():
     return {
         "etat": assistant.etat.obtenir()
+    }
+
+
+@app.get("/calendrier/evenements")
+def route_lister_evenements(
+    debut: str | None = None,
+    fin: str | None = None,
+):
+    """
+    Événements dont le début est dans [debut, fin[ (dates ISO 8601).
+    Utilisé par l'interface pour afficher le calendrier.
+    """
+    try:
+        evenements = lister_evenements(
+            debut_periode=debut,
+            fin_periode=fin,
+        )
+    except ValueError as erreur:
+        raise HTTPException(status_code=400, detail=str(erreur))
+
+    return {
+        "evenements": evenements
     }
 
 #thread vocal
