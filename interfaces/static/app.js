@@ -511,6 +511,11 @@ async function chargerEvenements() {
 
         renderCalendar();
 
+        // Le popup ouvert suit les modifications faites par Élise.
+        if (jourPopupOuvert !== null) {
+            remplirPopupJour(jourPopupOuvert);
+        }
+
     } catch (erreur) {
         console.error("Erreur chargement calendrier :", erreur);
     }
@@ -579,6 +584,7 @@ function renderCalendar() {
 
         const day = document.createElement("div");
         day.classList.add("calendar-day");
+        day.dataset.jour = cleJour(dateCase);
 
         if (dateCase.getMonth() !== mois) {
             day.classList.add("other-month");
@@ -624,6 +630,177 @@ function renderCalendar() {
         calendarGrid.appendChild(day);
     }
 }
+
+/* ---------------------------------------------------------
+   Popup des événements d'un jour (appui long sur une case)
+   --------------------------------------------------------- */
+
+const popupFond = document.getElementById("calendar-popup-fond");
+const popupTitre = document.getElementById("calendar-popup-titre");
+const popupListe = document.getElementById("calendar-popup-liste");
+const popupFermer = document.getElementById("calendar-popup-fermer");
+
+const DUREE_APPUI_LONG_MS = 500;
+const TOLERANCE_MOUVEMENT_PX = 10;
+
+let jourPopupOuvert = null;
+let minuteurAppui = null;
+let positionAppui = null;
+
+const formatJourPopup = new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+});
+
+const formatJourCourt = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short"
+});
+
+function texteHorairePopup(evenement, jour) {
+    if (evenement.jour_entier) {
+        return "Toute la journée";
+    }
+
+    const heureDebut = evenement.debut.slice(11, 16);
+
+    if (!evenement.fin) {
+        return heureDebut;
+    }
+
+    const heureFin = evenement.fin.slice(11, 16);
+
+    if (evenement.fin.slice(0, 10) === jour) {
+        return `${heureDebut} – ${heureFin}`;
+    }
+
+    const jourFin = new Date(`${evenement.fin.slice(0, 10)}T00:00:00`);
+    return `${heureDebut} → ${formatJourCourt.format(jourFin)} ${heureFin}`;
+}
+
+function remplirPopupJour(jour) {
+    popupTitre.textContent =
+        formatJourPopup.format(new Date(`${jour}T00:00:00`));
+
+    popupListe.innerHTML = "";
+
+    const evenements = evenementsParJour.get(jour) || [];
+
+    if (evenements.length === 0) {
+        const vide = document.createElement("div");
+        vide.classList.add("calendar-popup-vide");
+        vide.textContent = "Aucun événement ce jour-là.";
+        popupListe.appendChild(vide);
+        return;
+    }
+
+    for (const evenement of evenements) {
+        const bloc = document.createElement("div");
+        bloc.classList.add("calendar-popup-evenement");
+
+        const horaire = document.createElement("div");
+        horaire.classList.add("calendar-popup-heure");
+        horaire.textContent = texteHorairePopup(evenement, jour);
+
+        const titre = document.createElement("div");
+        titre.classList.add("calendar-popup-titre-evenement");
+        titre.textContent = evenement.titre;
+
+        bloc.append(horaire, titre);
+
+        for (const detail of [evenement.lieu, evenement.description]) {
+            if (detail) {
+                const ligne = document.createElement("div");
+                ligne.classList.add("calendar-popup-detail");
+                ligne.textContent = detail;
+                bloc.appendChild(ligne);
+            }
+        }
+
+        popupListe.appendChild(bloc);
+    }
+}
+
+function ouvrirPopupJour(jour) {
+    jourPopupOuvert = jour;
+    remplirPopupJour(jour);
+    popupFond.hidden = false;
+}
+
+function fermerPopupJour() {
+    jourPopupOuvert = null;
+    popupFond.hidden = true;
+}
+
+function annulerAppuiLong() {
+    clearTimeout(minuteurAppui);
+    minuteurAppui = null;
+    positionAppui = null;
+}
+
+calendarGrid.addEventListener("pointerdown", (event) => {
+    const caseJour = event.target.closest(".calendar-day");
+
+    if (!caseJour || (event.pointerType === "mouse" && event.button !== 0)) {
+        return;
+    }
+
+    annulerAppuiLong();
+    positionAppui = { x: event.clientX, y: event.clientY };
+
+    minuteurAppui = setTimeout(() => {
+        minuteurAppui = null;
+        positionAppui = null;
+
+        if (navigator.vibrate) {
+            navigator.vibrate(15);
+        }
+
+        ouvrirPopupJour(caseJour.dataset.jour);
+    }, DUREE_APPUI_LONG_MS);
+});
+
+// Le doigt qui bouge (défilement de la grille) annule l'appui long.
+calendarGrid.addEventListener("pointermove", (event) => {
+    if (positionAppui === null) {
+        return;
+    }
+
+    const distance = Math.hypot(
+        event.clientX - positionAppui.x,
+        event.clientY - positionAppui.y
+    );
+
+    if (distance > TOLERANCE_MOUVEMENT_PX) {
+        annulerAppuiLong();
+    }
+});
+
+["pointerup", "pointercancel", "pointerleave"].forEach((type) => {
+    calendarGrid.addEventListener(type, annulerAppuiLong);
+});
+
+// Pas de menu contextuel natif sur les cases (appui long Android).
+calendarGrid.addEventListener("contextmenu", (event) => {
+    if (event.target.closest(".calendar-day")) {
+        event.preventDefault();
+    }
+});
+
+popupFermer.addEventListener("click", fermerPopupJour);
+
+popupFond.addEventListener("click", (event) => {
+    if (event.target === popupFond) {
+        fermerPopupJour();
+    }
+});
+
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && jourPopupOuvert !== null) {
+        fermerPopupJour();
+    }
+});
 
 // Changement de mois : on dessine tout de suite la grille, puis on charge
 // les événements du nouveau mois.

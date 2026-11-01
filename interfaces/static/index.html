@@ -226,6 +226,37 @@
 
             </div>
 
+            <!-- Popup des événements d'un jour (appui long sur une case) -->
+            <div
+                id="calendar-popup-fond"
+                class="calendar-popup-fond"
+                hidden
+            >
+                <div
+                    class="calendar-popup"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="calendar-popup-titre"
+                >
+                    <div class="calendar-popup-entete">
+                        <h3 id="calendar-popup-titre"></h3>
+
+                        <button
+                            id="calendar-popup-fermer"
+                            class="calendar-popup-fermer"
+                            aria-label="Fermer"
+                        >
+                            ×
+                        </button>
+                    </div>
+
+                    <div
+                        id="calendar-popup-liste"
+                        class="calendar-popup-liste"
+                    ></div>
+                </div>
+            </div>
+
         </section>
 
 
@@ -257,7 +288,7 @@
 
 <script
     type="module"
-    src="/static/app.js?v=5"
+    src="/static/app.js?v=6"
     defer
 ></script>
 
