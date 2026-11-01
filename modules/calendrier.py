@@ -87,10 +87,11 @@ def resoudre_date_relative(expression: str):
 
         date_cible = aujourd_hui + timedelta(days=decalage)
 
+    # Bornes en heure locale sans fuseau, même format que la base.
     debut = datetime.combine(
         date_cible,
         datetime.min.time()
-    ).astimezone()
+    )
 
     fin = debut + timedelta(days=1)
 
@@ -127,6 +128,35 @@ def initialiser_bdd():
             """
         )
 
+        migrer_dates_vers_format_local(connexion)
+
+
+def migrer_dates_vers_format_local(connexion):
+    """
+    Convertit les dates déjà enregistrées avec fuseau (ex. +02:00)
+    en heure locale sans fuseau. Ne touche pas aux lignes déjà normalisées.
+    """
+    lignes = connexion.execute(
+        "SELECT id, debut, fin FROM evenements"
+    ).fetchall()
+
+    for ligne in lignes:
+        try:
+            nouveau_debut = normaliser_date(ligne["debut"])
+            nouvelle_fin = normaliser_date(ligne["fin"])
+        except ValueError:
+            print(
+                f"[CALENDRIER] date illisible, événement {ligne['id']} ignoré",
+                flush=True
+            )
+            continue
+
+        if nouveau_debut != ligne["debut"] or nouvelle_fin != ligne["fin"]:
+            connexion.execute(
+                "UPDATE evenements SET debut = ?, fin = ? WHERE id = ?",
+                (nouveau_debut, nouvelle_fin, ligne["id"]),
+            )
+
 
 def ajouter_evenement(
     titre: str,
@@ -137,6 +167,8 @@ def ajouter_evenement(
     jour_entier: bool = False,
     precision: str = "exacte",
 ):
+    debut = normaliser_date(debut)
+    fin = normaliser_date(fin)
     debut_dt = valider_date_iso(debut)
     fin_dt = valider_date_iso(fin)
     if fin_dt is not None and fin_dt < debut_dt:
@@ -185,6 +217,9 @@ def lister_evenements(
     parametres = []
     conditions = []
 
+    debut_periode = normaliser_date(debut_periode)
+    fin_periode = normaliser_date(fin_periode)
+
     if debut_periode is not None:
         conditions.append("debut >= ?")
         parametres.append(debut_periode)
@@ -230,6 +265,9 @@ def modifier_evenement(
 
     if evenement is None:
         return False
+
+    debut = normaliser_date(debut)
+    fin = normaliser_date(fin)
 
     nouveau_debut = debut if debut is not None else evenement["debut"]
     nouvelle_fin = fin if fin is not None else evenement["fin"]
@@ -317,6 +355,23 @@ def valider_date_iso(date_texte: str | None):
             "Format attendu : YYYY-MM-DDTHH:MM:SS"
         )
 
+
+def normaliser_date(date_texte: str | None):
+    """
+    Ramène une date ISO à un format unique : heure locale, sans fuseau,
+    YYYY-MM-DDTHH:MM:SS. Une date avec fuseau (+02:00, Z...) est convertie
+    en heure locale. Ce format fixe rend la comparaison texte de SQLite fiable.
+    """
+    date_dt = valider_date_iso(date_texte)
+
+    if date_dt is None:
+        return None
+
+    if date_dt.tzinfo is not None:
+        date_dt = date_dt.astimezone().replace(tzinfo=None)
+
+    return date_dt.isoformat(timespec="seconds")
+
 def rechercher_evenements(
     recherche: str,
     debut_periode: str | None = None,
@@ -334,6 +389,9 @@ def rechercher_evenements(
 
     terme = f"%{recherche.lower()}%"
     parametres = [terme, terme, terme]
+
+    debut_periode = normaliser_date(debut_periode)
+    fin_periode = normaliser_date(fin_periode)
 
     if debut_periode is not None:
         requete += " AND debut >= ?"
