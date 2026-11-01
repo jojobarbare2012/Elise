@@ -37,3 +37,4 @@ data/calendrier.db
 # Spotify : configuration du compte et jeton de connexion
 data/spotify.json
 data/spotify_jeton.json
+data/spotify_miroir.json
