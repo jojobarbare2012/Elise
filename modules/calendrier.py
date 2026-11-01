@@ -143,6 +143,30 @@ def resoudre_date_relative(expression: str):
         "fin_periode": fin.isoformat(timespec="seconds"),
     }
 
+# Fonctions appelées après chaque ajout, modification ou suppression
+# (ex. l'interface web qui prévient les clients). Le module ne dépend
+# ainsi d'aucune interface.
+abonnes_modifications = []
+
+
+def abonner_modifications(callback):
+    """callback(action, id_evenement) avec action = ajout | modification | suppression."""
+    abonnes_modifications.append(callback)
+
+
+def notifier_modification(action: str, id_evenement: int):
+    for callback in list(abonnes_modifications):
+        try:
+            callback(action, id_evenement)
+        except Exception as erreur:
+            # Une interface en erreur ne doit pas faire échouer l'écriture.
+            print(
+                "[CALENDRIER] erreur abonné :",
+                repr(erreur),
+                flush=True
+            )
+
+
 def connexion_bdd():
     CHEMIN_BDD.parent.mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +268,10 @@ def ajouter_evenement(
             ),
         )
 
-        return curseur.lastrowid
+    # Notification après la sortie du with : la ligne est alors commitée.
+    notifier_modification("ajout", curseur.lastrowid)
+
+    return curseur.lastrowid
 
 
 def lister_evenements(
@@ -291,7 +318,12 @@ def supprimer_evenement(id_evenement: int):
             (id_evenement,),
         )
 
-        return curseur.rowcount > 0
+    succes = curseur.rowcount > 0
+
+    if succes:
+        notifier_modification("suppression", id_evenement)
+
+    return succes
 
 def modifier_evenement(
     id_evenement: int,
@@ -367,7 +399,12 @@ def modifier_evenement(
     with connexion_bdd() as connexion:
         curseur = connexion.execute(requete, parametres)
 
-    return curseur.rowcount > 0
+    succes = curseur.rowcount > 0
+
+    if succes:
+        notifier_modification("modification", id_evenement)
+
+    return succes
 
 def obtenir_evenement(id_evenement: int):
     with connexion_bdd() as connexion:

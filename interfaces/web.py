@@ -14,7 +14,8 @@ from modules.calendrier import (outil_ajouter_evenement,
                                outil_supprimer_evenement,
                                outil_rechercher_evenements,
                                outil_resoudre_date_relative,
-                               lister_evenements)
+                               lister_evenements,
+                               abonner_modifications)
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from queue import Queue
@@ -367,6 +368,17 @@ def envoyer_evenement_websocket(evenement):
                     websockets_actifs.discard(client)
 
         futur.add_done_callback(verifier_envoi)
+
+
+def notifier_calendrier_modifie(action, id_evenement):
+    envoyer_evenement_websocket({
+        "type": "calendrier_modifie",
+        "action": action,
+        "id": id_evenement
+    })
+
+
+abonner_modifications(notifier_calendrier_modifie)
 
 @app.get("/")
 def afficher_interface():
