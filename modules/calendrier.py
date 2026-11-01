@@ -13,30 +13,68 @@ JOURS_INDEX = {
     "samedi": 5,
     "dimanche": 6,
 }
+NOMBRES_TEXTE = {
+    "un": 1,
+    "une": 1,
+    "deux": 2,
+    "trois": 3,
+    "quatre": 4,
+    "cinq": 5,
+    "six": 6,
+    "sept": 7,
+    "huit": 8,
+    "neuf": 9,
+    "dix": 10,
+    "quinze": 15,
+}
+
+
+def lire_nombre(mot: str, expression: str):
+    if mot.isdigit():
+        return int(mot)
+
+    if mot in NOMBRES_TEXTE:
+        return NOMBRES_TEXTE[mot]
+
+    raise ValueError(f"Expression temporelle invalide : {expression}")
+
+
+def premier_jour_semaine(mots):
+    """Renvoie l'index (lundi = 0) du premier jour de semaine cité, ou None."""
+    for mot in mots:
+        if mot in JOURS_INDEX:
+            return JOURS_INDEX[mot]
+
+    return None
+
 
 def resoudre_date_relative(expression: str):
     """
     Résout une expression temporelle simple en une période ISO.
 
     Exemples supportés :
-    - aujourd'hui
-    - demain
-    - après-demain
+    - aujourd'hui, demain, après-demain
     - lundi, mardi, mercredi...
     - lundi prochain, mardi prochain...
-    - dans 3 jours
+    - dans 1 jour, dans 3 jours, dans deux jours
+    - dans une semaine, dans 2 semaines
+    - cette semaine (du lundi au dimanche de la semaine en cours)
+    - semaine prochaine, la semaine prochaine (semaine entière)
+    - mardi de la semaine prochaine, mardi semaine prochaine
 
     Returns:
         Un dictionnaire avec :
+        - date : premier jour de la période
         - debut_periode
-        - fin_periode
-        - date
+        - fin_periode (exclusive)
     """
 
-    maintenant = datetime.now().astimezone()
-    aujourd_hui = maintenant.date()
+    aujourd_hui = datetime.now().date()
+    lundi_courant = aujourd_hui - timedelta(days=aujourd_hui.weekday())
 
-    expression = expression.strip().lower()
+    expression = expression.strip().lower().replace("’", "'")
+    mots = expression.split()
+    nombre_jours_periode = 1
 
     if expression in {"aujourd'hui", "aujourdhui"}:
         date_cible = aujourd_hui
@@ -47,41 +85,45 @@ def resoudre_date_relative(expression: str):
     elif expression in {"après-demain", "apres-demain"}:
         date_cible = aujourd_hui + timedelta(days=2)
 
-    elif expression.startswith("dans ") and expression.endswith(" jours"):
-        morceaux = expression.split()
+    elif (
+        len(mots) == 3
+        and mots[0] == "dans"
+        and mots[2] in {"jour", "jours", "semaine", "semaines"}
+    ):
+        nombre = lire_nombre(mots[1], expression)
 
-        try:
-            nombre_jours = int(morceaux[1])
-        except (ValueError, IndexError):
-            raise ValueError(
-                f"Expression temporelle invalide : {expression}"
-            )
+        if mots[2].startswith("semaine"):
+            nombre *= 7
 
-        date_cible = aujourd_hui + timedelta(days=nombre_jours)
+        date_cible = aujourd_hui + timedelta(days=nombre)
+
+    elif expression == "cette semaine":
+        date_cible = lundi_courant
+        nombre_jours_periode = 7
+
+    elif "semaine prochaine" in expression:
+        lundi_prochain = lundi_courant + timedelta(days=7)
+        index_jour = premier_jour_semaine(mots)
+
+        if index_jour is None:
+            date_cible = lundi_prochain
+            nombre_jours_periode = 7
+        else:
+            date_cible = lundi_prochain + timedelta(days=index_jour)
 
     else:
-        mots = expression.split()
+        index_cible = premier_jour_semaine(mots)
 
-        jour_trouve = None
-
-        for mot in mots:
-            if mot in JOURS_INDEX:
-                jour_trouve = mot
-                break
-
-        if jour_trouve is None:
+        if index_cible is None:
             raise ValueError(
                 f"Expression temporelle non reconnue : {expression}"
             )
 
-        index_cible = JOURS_INDEX[jour_trouve]
-        index_actuel = aujourd_hui.weekday()
-
-        decalage = (index_cible - index_actuel) % 7
+        decalage = (index_cible - aujourd_hui.weekday()) % 7
 
         # "mardi" = prochain mardi à venir.
         # Si aujourd'hui est mardi, on considère aujourd'hui.
-        if "prochain" in mots:
+        if "prochain" in mots or "prochaine" in mots:
             if decalage == 0:
                 decalage = 7
 
@@ -93,7 +135,7 @@ def resoudre_date_relative(expression: str):
         datetime.min.time()
     )
 
-    fin = debut + timedelta(days=1)
+    fin = debut + timedelta(days=nombre_jours_periode)
 
     return {
         "date": date_cible.isoformat(),
@@ -661,19 +703,23 @@ def outil_resoudre_date_relative(expression: str):
     Résout une date relative ou un jour de semaine en une date réelle.
 
     À utiliser lorsqu'une demande contient une expression temporelle relative
-    comme "demain", "mardi prochain", "dans 3 jours" ou "vendredi".
+    comme "demain", "mardi prochain", "dans 3 jours", "dans une semaine",
+    "cette semaine", "la semaine prochaine" ou "vendredi".
 
     Cet outil doit être utilisé avant les outils du calendrier lorsque la date
     exacte n'est pas explicitement fournie.
 
     Args:
         expression:
-            Expression temporelle à résoudre.
-            Exemple : "mardi prochain".
+            Expression temporelle seule, sans l'heure.
+            Exemples : "mardi prochain", "dans 2 jours", "semaine prochaine",
+            "jeudi de la semaine prochaine".
 
     Returns:
-        Un dictionnaire contenant la date résolue ainsi que le début et la fin
-        de la journée correspondante.
+        Un dictionnaire contenant la date résolue ainsi que debut_periode et
+        fin_periode (exclusive). Pour une journée, la période couvre ce jour ;
+        pour "cette semaine" ou "semaine prochaine", elle couvre la semaine
+        entière du lundi au dimanche.
     """
 
     try:
