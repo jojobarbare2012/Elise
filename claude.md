@@ -54,7 +54,9 @@ Tauri (src-tauri/src/lib.rs)
   confirmation demandée à Jonathan si un souvenir important est remplacé.
 - **Outils** : fonctions Python passées directement à Ollama (signature + docstring
   = schéma). Préfixe `outil_`. Modules : `taches` (JSON), `calendrier` (SQLite),
-  `applications` (lance les chemins de `data/applications.json`).
+  `applications` (cherche dans le menu Démarrer, les raccourcis du Bureau puis le
+  registre ; `data/applications.json` ne contient que des surnoms ; une simple
+  ressemblance de nom ne lance rien sans confirmation).
   Nouvel outil = fonction documentée dans `modules/` + ajout à la liste dans
   `interfaces/web.py`.
 - **Calendrier** : dates stockées en heure locale sans fuseau
@@ -82,7 +84,8 @@ Tauri (src-tauri/src/lib.rs)
 - Calendrier : un événement n'est listé que si son **début** est dans la période
   (un événement sur plusieurs jours n'apparaît que le premier jour).
 - Couplage Windows : chemins absolus `C:\Users\Jonathan\...` dans `lib.rs`,
-  `netstat`/`taskkill` dans `launcher.py`.
+  `netstat`/`taskkill` dans `launcher.py`, `modules/applications.py` entièrement
+  Windows (`Get-StartApps`, `winreg`, `shell:AppsFolder`).
 - Modèle `qwen3:14b` codé en dur à plusieurs endroits ; `ollama.chat` appelé
   directement depuis `core/`.
 - Sécurité : uvicorn sur `0.0.0.0` sans authentification (toutes les routes,
