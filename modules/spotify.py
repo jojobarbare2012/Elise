@@ -293,7 +293,13 @@ def appel_api(methode, chemin, parametres=None, corps=None, _deja_renouvele=Fals
     try:
         with urllib.request.urlopen(requete, timeout=DELAI_RESEAU_S) as reponse:
             contenu = reponse.read()
-            return json.loads(contenu.decode("utf-8")) if contenu else None
+
+        # Certaines commandes (ex. reprise de lecture) répondent 200 avec un
+        # corps non JSON : c'est un succès sans données.
+        try:
+            return json.loads(contenu.decode("utf-8")) if contenu.strip() else None
+        except (ValueError, UnicodeDecodeError):
+            return None
 
     except urllib.error.HTTPError as erreur:
         if erreur.code == 401 and not _deja_renouvele:
@@ -701,6 +707,168 @@ def outil_spotify_jouer(recherche: str, type: str = "titre"):
         "succes": True,
         "lecture": resolution["description"],
         "appareil": appareil.get("name"),
+    }
+
+
+# =========================================================
+# Commandes de lecture
+# =========================================================
+
+ACTIONS_CONTROLE = {
+    "pause": "pause",
+    "stop": "pause",
+    "arreter": "pause",
+    "arrete": "pause",
+    "reprendre": "reprendre",
+    "reprise": "reprendre",
+    "play": "reprendre",
+    "lecture": "reprendre",
+    "continuer": "reprendre",
+    "suivant": "suivant",
+    "suivante": "suivant",
+    "next": "suivant",
+    "passer": "suivant",
+    "precedent": "precedent",
+    "precedente": "precedent",
+    "previous": "precedent",
+    "en cours": "en_cours",
+    "en_cours": "en_cours",
+    "titre en cours": "en_cours",
+    "quoi": "en_cours",
+}
+
+
+def lire_etat_lecteur():
+    """État du lecteur, ou None si aucune lecture Spotify active nulle part."""
+    etat = appel_api("GET", "/me/player")
+
+    if not etat or not etat.get("device"):
+        return None
+
+    return etat
+
+
+def decrire_etat(etat):
+    item = (etat or {}).get("item")
+
+    if not item:
+        return "rien"
+
+    return decrire_element(item)
+
+
+def attendre_etat(condition, delai=DELAI_VERIFICATION_S):
+    """Relit le lecteur jusqu'à ce que condition(etat) soit vraie. Renvoie le dernier état."""
+    limite = time.time() + delai
+    etat = None
+
+    while time.time() < limite:
+        time.sleep(0.8)
+        etat = lire_etat_lecteur()
+
+        if etat is not None and condition(etat):
+            return etat, True
+
+    return etat, False
+
+
+def outil_spotify_controle(action: str):
+    """
+    Contrôle la lecture Spotify en cours.
+
+    Args:
+        action:
+            "pause", "reprendre", "suivant", "precedent", ou "en_cours"
+            pour savoir quel morceau est en train de jouer.
+
+    Returns:
+        Un dictionnaire avec le résultat réel (morceau en cours après
+        l'action), ou une erreur à expliquer à l'utilisateur.
+    """
+    action_normalisee = ACTIONS_CONTROLE.get(
+        applications.normaliser_nom(action or "").replace("_", " ")
+    ) or ACTIONS_CONTROLE.get(action)
+
+    if action_normalisee is None:
+        return {
+            "succes": False,
+            "erreur": f"Action inconnue : {action}. Actions possibles : "
+                      "pause, reprendre, suivant, precedent, en_cours.",
+        }
+
+    try:
+        etat = lire_etat_lecteur()
+
+        if etat is None:
+            return {"succes": False, "erreur": "Aucune lecture Spotify active."}
+
+        morceau_avant = decrire_etat(etat)
+        uri_avant = (etat.get("item") or {}).get("uri")
+        progression_avant = etat.get("progress_ms") or 0
+
+        if action_normalisee == "en_cours":
+            return {
+                "succes": True,
+                "morceau": morceau_avant,
+                "en_lecture": bool(etat.get("is_playing")),
+                "appareil": etat["device"].get("name"),
+            }
+
+        if action_normalisee == "pause":
+            if not etat.get("is_playing"):
+                return {"succes": True, "message": f"Déjà en pause ({morceau_avant})."}
+
+            appel_api("PUT", "/me/player/pause")
+            etat, ok = attendre_etat(lambda e: not e.get("is_playing"))
+
+        elif action_normalisee == "reprendre":
+            if etat.get("is_playing"):
+                return {"succes": True, "message": f"Déjà en lecture ({morceau_avant})."}
+
+            appel_api("PUT", "/me/player/play")
+            etat, ok = attendre_etat(lambda e: e.get("is_playing"))
+
+        elif action_normalisee == "suivant":
+            appel_api("POST", "/me/player/next")
+            etat, ok = attendre_etat(
+                lambda e: (e.get("item") or {}).get("uri") != uri_avant
+            )
+
+        else:
+            appel_api("POST", "/me/player/previous")
+            # Selon l'appli, "précédent" change de titre ou revient au début du titre.
+            etat, ok = attendre_etat(
+                lambda e: (e.get("item") or {}).get("uri") != uri_avant
+                or (e.get("progress_ms") or 0) < min(progression_avant, 3000)
+            )
+
+    except ErreurSpotify as erreur:
+        if erreur.statut == 403:
+            return {
+                "succes": False,
+                "erreur": f"Spotify n'autorise pas « {action_normalisee} » maintenant "
+                          "(par exemple pas de titre précédent).",
+            }
+
+        print("[SPOTIFY] ERREUR :", erreur, flush=True)
+        return {"succes": False, "erreur": str(erreur)}
+
+    morceau = decrire_etat(etat)
+
+    if not ok:
+        return {
+            "succes": False,
+            "erreur": f"Spotify a accepté « {action_normalisee} » mais rien n'a changé. "
+                      f"Morceau actuel : {morceau}.",
+        }
+
+    print("[SPOTIFY] contrôle :", action_normalisee, "|", morceau, flush=True)
+
+    return {
+        "succes": True,
+        "action": action_normalisee,
+        "morceau": morceau,
+        "en_lecture": bool(etat.get("is_playing")),
     }
 
 
