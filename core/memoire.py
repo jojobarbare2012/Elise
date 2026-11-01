@@ -170,27 +170,49 @@ Tu dois seulement déterminer si Jonathan l'a présenté comme un projet réel.
 """
 
 PROMPT_RELATION_SOUVENIR = """
-Tu compares un nouveau souvenir avec plusieurs souvenirs actifs existants.
+Tu compares un NOUVEAU souvenir avec des souvenirs EXISTANTS numérotés
+[1], [2], etc.
 
-Pour chaque souvenir existant, indique la relation avec le nouveau souvenir.
+Pour chaque souvenir existant, choisis UNE relation :
+- doublon : TOUT ce que dit le nouveau souvenir est déjà dit dans
+  l'ancien, même avec d'autres mots (synonymes, ordre différent).
+  Si le nouveau ajoute un détail absent de l'ancien (un outil,
+  un lieu, une date, une précision), ce n'est PAS un doublon.
+- contradiction : les deux ne peuvent pas être vrais en même temps,
+  ou le nouveau remplace clairement l'ancien.
+- complement : même sujet, les deux peuvent être vrais ensemble,
+  et l'un apporte une information que l'autre n'a pas.
+- aucun_conflit : pas de lien direct.
 
-Relations autorisées :
-- doublon : même information, reformulée différemment.
-- contradiction : les deux informations ne peuvent pas être vraies en même temps ou la nouvelle remplace clairement l'ancienne.
-- complement : les deux informations concernent le même sujet mais peuvent coexister.
-- aucun_conflit : pas de relation suffisamment directe.
+Règles :
+- Pour chaque identifiant, écris d'abord une raison courte
+  (une phrase), puis la relation.
+- Si deux souvenirs donnent des valeurs différentes à une chose
+  unique (le projet principal, la ville où il habite...),
+  c'est une contradiction.
+- Si le nouveau souvenir change le statut d'une information
+  (envisagé → réel, secondaire → principal, ancien → actuel),
+  ce n'est PAS un doublon.
+- Ne recopie pas les souvenirs.
 
-Réponds uniquement en JSON valide.
+Exemple :
 
-Format :
-{
-  "relations": [
-    {
-      "id": 1,
-      "relation": "doublon"
-    }
-  ]
-}
+Nouveau souvenir :
+« Jonathan a un chien qui s'appelle Rex. »
+
+Souvenirs existants :
+[7] Le chien de Jonathan se nomme Rex.
+[8] Jonathan n'a aucun animal de compagnie.
+[9] Le chien de Jonathan est un berger allemand.
+[10] Jonathan joue aux échecs.
+
+Réponse :
+{"relations": {
+  "7": {"raison": "Même chien, même nom, simplement reformulé.", "relation": "doublon"},
+  "8": {"raison": "Il ne peut pas avoir un chien et aucun animal.", "relation": "contradiction"},
+  "9": {"raison": "Même chien, la race est une information en plus.", "relation": "complement"},
+  "10": {"raison": "Les échecs n'ont aucun rapport avec le chien.", "relation": "aucun_conflit"}
+}}
 """
 
 PROMPT_CORRECTION_MEMOIRE = """
@@ -594,20 +616,114 @@ def trouver_souvenirs_similaires(nouveau_contenu):
         if candidat["score"] >= SEUIL_PERTINENCE
     ]
 
-def analyser_relation_souvenir(nouveau_souvenir, candidats):
-    donnees = json.dumps(
-        {
-            "nouveau_souvenir": nouveau_souvenir,
-            "souvenirs_existants": [
-                {
-                    "id": candidat["souvenir"]["id"],
-                    "contenu": candidat["souvenir"]["contenu"]
-                }
-                for candidat in candidats
-            ]
+def formater_donnees_relation(nouveau_souvenir, candidats):
+    """
+    Présente les souvenirs en texte numéroté plutôt qu'en JSON :
+    avec une entrée JSON, qwen3:4b avait tendance à la recopier
+    au lieu de répondre.
+    """
+    lignes = [
+        "Nouveau souvenir :",
+        f"« {nouveau_souvenir['contenu']} »",
+        "",
+        "Souvenirs existants :",
+    ]
+
+    for candidat in candidats:
+        lignes.append(
+            f"[{candidat['souvenir']['id']}] {candidat['souvenir']['contenu']}"
+        )
+
+    return "\n".join(lignes)
+
+
+def construire_schema_relations(candidats):
+    """
+    Schéma JSON imposé à Ollama : une clé obligatoire par candidat
+    (impossible d'en oublier ou d'en répéter un), chacune avec une
+    raison courte écrite AVANT la relation, qui doit être autorisée.
+    """
+    ids = [str(candidat["souvenir"]["id"]) for candidat in candidats]
+
+    schema_relation = {
+        "type": "object",
+        "properties": {
+            "raison": {
+                "type": "string",
+                "maxLength": 200
+            },
+            "relation": {
+                "type": "string",
+                "enum": sorted(RELATIONS_SOUVENIRS)
+            }
         },
-        ensure_ascii=False
-    )
+        "required": ["raison", "relation"]
+    }
+
+    return {
+        "type": "object",
+        "properties": {
+            "relations": {
+                "type": "object",
+                "properties": {
+                    identifiant: schema_relation
+                    for identifiant in ids
+                },
+                "required": ids
+            }
+        },
+        "required": ["relations"]
+    }
+
+
+def convertir_reponse_relations(contenu, candidats):
+    """
+    Convertit la réponse {"relations": {"1": {"raison", "relation"}}}
+    au format attendu par traiter_nouveau_souvenir :
+    {"relations": [{"id": 1, "relation": "..."}]}.
+    Retourne None si la réponse est inutilisable.
+    """
+    donnees = parser_reponse_memoire(contenu)
+
+    if not isinstance(donnees, dict):
+        return None
+
+    relations = donnees.get("relations")
+
+    if not isinstance(relations, dict):
+        return None
+
+    resultat = []
+
+    for candidat in candidats:
+        identifiant = candidat["souvenir"]["id"]
+        element = relations.get(str(identifiant))
+
+        if not isinstance(element, dict):
+            return None
+
+        print(
+            f"[RELATION] [{identifiant}] {element.get('relation')} "
+            f"— {element.get('raison')}",
+            flush=True
+        )
+
+        resultat.append({
+            "id": identifiant,
+            "relation": element.get("relation")
+        })
+
+    analyse = {"relations": resultat}
+
+    if not valider_relations_souvenirs(analyse):
+        return None
+
+    return analyse
+
+
+def analyser_relation_souvenir(nouveau_souvenir, candidats):
+    donnees = formater_donnees_relation(nouveau_souvenir, candidats)
+    schema = construire_schema_relations(candidats)
     print("[RELATION] appel Qwen 1...", flush=True)
     debut = time.perf_counter()
 
@@ -624,7 +740,7 @@ def analyser_relation_souvenir(nouveau_souvenir, candidats):
                 "content": donnees
             }
         ],
-        format="json",
+        format=schema,
         options={
             "temperature": 0
         },
@@ -642,76 +758,51 @@ def analyser_relation_souvenir(nouveau_souvenir, candidats):
         reponse.message.content,
         flush=True
     )
-    analyse = parser_reponse_memoire(
-        reponse.message.content
+    analyse = convertir_reponse_relations(
+        reponse.message.content,
+        candidats
     )
     print(
-        "[RELATION] analyse parsée :",
+        "[RELATION] analyse convertie :",
         analyse,
         flush=True
     )
 
-    if (
-        analyse is not None
-        and valider_relations_souvenirs(analyse)
-    ):
+    if analyse is not None:
         return analyse
     print("[RELATION] première réponse invalide, retry...", flush=True)
 
-    # Seconde tentative
+    # Seconde tentative : mêmes réglages que la première
+    # (sans think=False, Qwen3 réfléchissait jusqu'à ~30 s ici).
     reponse_correction = ollama.chat(
         model=MODELE_MEMOIRE,
         messages=[
             {
                 "role": "system",
-                "content": """
-La réponse précédente devait décrire les relations entre souvenirs.
-
-Retourne uniquement un JSON valide sous cette forme :
-
-{
-    "relations": [
-        {
-            "id": 1,
-            "relation": "contradiction"
-        }
-    ]
-}
-
-Relations autorisées :
-- doublon
-- contradiction
-- complement
-- aucun_conflit
-
-L'id doit être un entier provenant des souvenirs existants.
-N'invente aucun souvenir ni aucun id.
-"""
+                "content": PROMPT_RELATION_SOUVENIR
             },
             {
                 "role": "user",
                 "content": (
-                    "Données originales :\n"
-                    + donnees
-                    + "\n\nRéponse invalide :\n"
-                    + reponse.message.content
+                    donnees
+                    + "\n\nTa réponse précédente était invalide. "
+                    "Pour chaque identifiant entre crochets, donne une "
+                    "raison courte puis une relation."
                 )
             }
         ],
+        format=schema,
+        options={
+            "temperature": 0
+        },
+        think=False,
         keep_alive=0,
     )
 
-    analyse_corrigee = parser_reponse_memoire(
-        reponse_correction.message.content
+    return convertir_reponse_relations(
+        reponse_correction.message.content,
+        candidats
     )
-
-    if (
-        analyse_corrigee is not None
-        and valider_relations_souvenirs(analyse_corrigee)
-    ):
-        return analyse_corrigee
-
-    return None
 
 
 def valider_relations_souvenirs(analyse):
