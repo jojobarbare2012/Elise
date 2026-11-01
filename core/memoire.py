@@ -17,156 +17,79 @@ TYPES_SOUVENIRS = [
 MODELE_MEMOIRE = "qwen3:4b"
 
 PROMPT_ANALYSE_MEMOIRE = """
-Tu extrais uniquement les informations DURABLES concernant Jonathan
-qui seront réellement utiles dans de futures conversations.
+Tu lis un message de Jonathan et tu extrais les informations sur lui
+qui resteront vraies et utiles dans les jours, semaines ou mois à venir.
 
-Tu dois être très sélectif.
+=== À RETENIR ===
 
-=== CE QUI DOIT ÊTRE MÉMORISÉ ===
+Dès que Jonathan affirme quelque chose de durable sur lui-même :
+- ses proches (famille, couple, amis, animaux) et ce qu'ils font,
+- sa santé (allergies, régime, contraintes physiques),
+- où il vit, où il va vivre, son travail, ses études,
+- ses dates importantes (anniversaire...),
+- ses goûts et préférences, y compris sur la façon dont
+  l'assistant doit lui répondre,
+- ses habitudes, et les CHANGEMENTS d'habitude
+  (il a arrêté, il a commencé, il fait désormais...),
+- ses projets et objectifs.
 
-Mémorise principalement :
-- préférences durables,
-- projets actuels ou futurs importants,
-- objectifs,
-- informations personnelles durables,
-- contraintes importantes,
-- contexte de vie susceptible de rester pertinent.
+Une information future annoncée (déménagement, nouveau travail...)
+se retient aussi.
 
-Une information doit pouvoir être utile plusieurs jours, semaines ou mois plus tard.
+=== À NE PAS RETENIR ===
 
-=== CE QUI NE DOIT PAS ÊTRE MÉMORISÉ ===
+- une question ou une demande d'explication,
+- une commande pour l'assistant (ouvrir une application, ajouter
+  un rendez-vous ou une tâche, mettre un minuteur...),
+- la politesse et les banalités (salut, merci, la météo),
+- un événement unique sans conséquence durable,
+- une humeur passagère,
+- ce que Jonathan n'a pas réellement affirmé.
 
-Ne mémorise PAS :
-- une question posée par Jonathan,
-- une demande d'explication,
-- le sujet d'une conversation ponctuelle,
-- une erreur ou un bug temporaire,
-- une réaction émotionnelle momentanée,
-- une information générale expliquée par l'assistant,
-- une situation ponctuelle sans conséquence future,
-- quelque chose que tu déduis sans que Jonathan l'ait réellement affirmé.
+=== FORMAT ===
 
-Ne transforme jamais le sujet d'une question en information personnelle.
+Chaque souvenir :
+- contenu : une seule information, en français, compréhensible seule,
+  qui commence par « Jonathan » ;
+- type : preference, projet, personnel, contexte ou objectif ;
+- importance : faible, moyenne, forte ou critique
+  (critique = santé ou sécurité, forte = proches, lieu de vie,
+  projet principal, préférence de réponse).
 
-Exemple :
+Un message peut contenir zéro, un ou plusieurs souvenirs.
 
-Jonathan :
-"Explique-moi les WebSockets simplement."
+=== EXEMPLES ===
 
-Résultat :
-{"souvenirs":[]}
+Message : « Explique-moi les WebSockets simplement. »
+{"souvenirs": []}
 
-PAS :
-"Jonathan préfère les explications simples des WebSockets."
+Message : « Ajoute dentiste vendredi à 10h dans mon calendrier. »
+{"souvenirs": []}
 
+Message : « J'ai oublié de sauvegarder mon fichier. »
+{"souvenirs": []}
 
-Jonathan :
-"Quelle est la différence entre un thread et une coroutine ?"
+Message : « J'ai un chat qui s'appelle Pixel. »
+{"souvenirs": [
+  {"contenu": "Jonathan a un chat nommé Pixel.", "type": "personnel", "importance": "forte"}
+]}
 
-Résultat :
-{"souvenirs":[]}
+Message : « Je suis devenu végétarien, et ne me mets plus d'emojis
+dans tes réponses. »
+{"souvenirs": [
+  {"contenu": "Jonathan est végétarien.", "type": "personnel", "importance": "forte"},
+  {"contenu": "Jonathan ne veut pas d'emojis dans les réponses.", "type": "preference", "importance": "forte"}
+]}
 
-Ne mémorise jamais la réponse à cette question.
+Message : « Mon projet principal est de développer Élise, mon IA
+personnelle. Je prévois aussi de créer un exosquelette. »
+{"souvenirs": [
+  {"contenu": "Le projet principal de Jonathan est de développer Élise, son IA personnelle.", "type": "projet", "importance": "forte"},
+  {"contenu": "Jonathan prévoit de créer un exosquelette.", "type": "projet", "importance": "moyenne"}
+]}
 
-
-Jonathan :
-"J'ai oublié de sauvegarder mon fichier."
-
-Résultat :
-{"souvenirs":[]}
-
-Un événement unique n'est pas une habitude.
-
-
-Jonathan :
-"J'oublie souvent de sauvegarder mes fichiers."
-
-Résultat possible :
-{
-    "souvenirs":[
-        {
-            "contenu":"Jonathan a tendance à oublier de sauvegarder ses fichiers.",
-            "type":"personnel",
-            "importance":"faible"
-        }
-    ]
-}
-
-
-Jonathan :
-"Mon projet principal est de développer Élise, mon IA personnelle.
-Je prévois aussi de créer un exosquelette et un lance-toile."
-
-Résultat :
-{
-    "souvenirs":[
-        {
-            "contenu":"Le projet principal de Jonathan est de développer Élise, son IA personnelle.",
-            "type":"projet",
-            "importance":"forte"
-        },
-        {
-            "contenu":"Jonathan prévoit de développer un exosquelette.",
-            "type":"projet",
-            "importance":"moyenne"
-        },
-        {
-            "contenu":"Jonathan prévoit de développer un lance-toile.",
-            "type":"projet",
-            "importance":"moyenne"
-        }
-    ]
-}
-
-=== RÈGLES ===
-
-- Un souvenir = une seule information atomique.
-- N'invente rien.
-- Ne déduis pas une habitude à partir d'un événement unique.
-- Ne mémorise pas une connaissance générale.
-- Si tu hésites entre mémoriser et ne pas mémoriser, NE MÉMORISE PAS.
-- Le contenu doit être compréhensible sans la conversation d'origine.
-- Écris les souvenirs en français.
-
-Types autorisés :
-- preference
-- projet
-- personnel
-- contexte
-- objectif
-
-Importance autorisée :
-- faible
-- moyenne
-- forte
-- critique
-
-Réponds uniquement en JSON valide :
-
-{
-    "souvenirs": [
-        {
-            "contenu": "...",
-            "type": "...",
-            "importance": "..."
-        }
-    ]
-}
-
-Si rien n'est suffisamment durable :
-
-{
-    "souvenirs": []
-}
-
-Un projet explicitement déclaré par Jonathan doit être mémorisé s'il semble
-destiné à durer au-delà de la conversation actuelle.
-
-Ne rejette jamais une information simplement parce qu'elle paraît inhabituelle,
-ambitieuse, futuriste ou improbable.
-
-Tu n'as pas à juger si le projet est réaliste.
-Tu dois seulement déterminer si Jonathan l'a présenté comme un projet réel.
+Ne juge pas si un projet est réaliste : s'il est présenté comme réel,
+retiens-le.
 """
 
 PROMPT_RELATION_SOUVENIR = """
@@ -385,7 +308,37 @@ def parser_reponse_memoire(contenu: str):
     except json.JSONDecodeError:
         return None
 
+def construire_schema_analyse_memoire():
+    """Schéma JSON imposé à Ollama pour l'extraction des souvenirs."""
+    return {
+        "type": "object",
+        "properties": {
+            "souvenirs": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "contenu": {"type": "string", "maxLength": 300},
+                        "type": {
+                            "type": "string",
+                            "enum": list(TYPES_SOUVENIRS)
+                        },
+                        "importance": {
+                            "type": "string",
+                            "enum": list(NIVEAUX_IMPORTANCE)
+                        }
+                    },
+                    "required": ["contenu", "type", "importance"]
+                }
+            }
+        },
+        "required": ["souvenirs"]
+    }
+
+
 def analyser_message_pour_memoire(message):
+    schema = construire_schema_analyse_memoire()
+
     reponse = ollama.chat(
         model=MODELE_MEMOIRE,
         messages=[
@@ -398,10 +351,11 @@ def analyser_message_pour_memoire(message):
                 "content": message
             }
         ],
-        format="json",
+        format=schema,
         options={
             "temperature": 0
         },
+        think=False,
         keep_alive = 0,
     )
     contenu = reponse.message.content
@@ -438,6 +392,11 @@ def analyser_message_pour_memoire(message):
                 "content": contenu
             }
         ],
+        format=schema,
+        options={
+            "temperature": 0
+        },
+        think=False,
         keep_alive=0,
     )
 
