@@ -526,7 +526,9 @@ main.main-content {
 .calendar-weekdays,
 .calendar-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    /* minmax(0, …) : une colonne ne s'élargit pas pour un titre long,
+       sinon la grille se décale par rapport aux en-têtes. */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .calendar-weekdays {
@@ -542,6 +544,7 @@ main.main-content {
 }
 
 .calendar-day {
+    min-width: 0;
     min-height: 110px;
     padding: 10px;
     border-right: 1px solid var(--border);
