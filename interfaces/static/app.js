@@ -329,6 +329,11 @@ socket.addEventListener("message", (event) => {
 
     scrollerEnBas()
     }
+    if (donnees.type === "calendrier_modifie") {
+        chargerEvenements();
+        return;
+    }
+
     if (donnees.type === "memory_confirmation") {
         ajouterMessage("elise", donnees.content);
         scrollerEnBas();
@@ -395,6 +400,11 @@ navItems.forEach((item) => {
             view.classList.toggle("active", view.id === viewId);
         });
 
+        // Rattrape une notification manquée (WebSocket coupé, onglet en veille).
+        if (viewId === "calendar-view") {
+            chargerEvenements();
+        }
+
         fermerSidebar();
     });
 });
@@ -413,12 +423,134 @@ const todayButton = document.getElementById("calendar-today");
 
 let dateAffichee = new Date();
 
+// Événements de la grille affichée, rangés par jour : "YYYY-MM-DD" → [événements]
+let evenementsParJour = new Map();
+let numeroRequeteCalendrier = 0;
+
+const MAX_EVENEMENTS_PAR_CASE = 3;
+const NOMBRE_CASES_GRILLE = 42;
+
 function memeJour(dateA, dateB) {
     return (
         dateA.getFullYear() === dateB.getFullYear() &&
         dateA.getMonth() === dateB.getMonth() &&
         dateA.getDate() === dateB.getDate()
     );
+}
+
+function deuxChiffres(nombre) {
+    return String(nombre).padStart(2, "0");
+}
+
+// "YYYY-MM-DD" en heure locale (toISOString passerait en UTC).
+function cleJour(date) {
+    return `${date.getFullYear()}-${deuxChiffres(date.getMonth() + 1)}-${deuxChiffres(date.getDate())}`;
+}
+
+// Même format que le backend : heure locale sans fuseau.
+function dateLocaleIso(date) {
+    return `${cleJour(date)}T${deuxChiffres(date.getHours())}:${deuxChiffres(date.getMinutes())}:${deuxChiffres(date.getSeconds())}`;
+}
+
+function calculerDebutGrille() {
+    const premierJourMois = new Date(
+        dateAffichee.getFullYear(),
+        dateAffichee.getMonth(),
+        1
+    );
+
+    // JS : dimanche = 0
+    // Nous : lundi = 0
+    const decalagePremierJour =
+        (premierJourMois.getDay() + 6) % 7;
+
+    return new Date(
+        premierJourMois.getFullYear(),
+        premierJourMois.getMonth(),
+        1 - decalagePremierJour
+    );
+}
+
+async function chargerEvenements() {
+    const numeroRequete = ++numeroRequeteCalendrier;
+
+    const debutGrille = calculerDebutGrille();
+    const finGrille = new Date(debutGrille);
+    finGrille.setDate(debutGrille.getDate() + NOMBRE_CASES_GRILLE);
+
+    const parametres = new URLSearchParams({
+        debut: dateLocaleIso(debutGrille),
+        fin: dateLocaleIso(finGrille)
+    });
+
+    try {
+        const reponse = await fetch(`/calendrier/evenements?${parametres}`);
+
+        if (!reponse.ok) {
+            throw new Error(`HTTP ${reponse.status}`);
+        }
+
+        const donnees = await reponse.json();
+
+        // Une réponse plus récente est déjà arrivée (changement de mois rapide).
+        if (numeroRequete !== numeroRequeteCalendrier) {
+            return;
+        }
+
+        evenementsParJour = new Map();
+
+        for (const evenement of donnees.evenements) {
+            const jour = evenement.debut.slice(0, 10);
+
+            if (!evenementsParJour.has(jour)) {
+                evenementsParJour.set(jour, []);
+            }
+
+            evenementsParJour.get(jour).push(evenement);
+        }
+
+        renderCalendar();
+
+    } catch (erreur) {
+        console.error("Erreur chargement calendrier :", erreur);
+    }
+}
+
+function creerElementEvenement(evenement) {
+    const element = document.createElement("div");
+    element.classList.add("calendar-event");
+
+    const heureDebut = evenement.debut.slice(11, 16);
+    const heureFin = evenement.fin ? evenement.fin.slice(11, 16) : null;
+
+    if (!evenement.jour_entier) {
+        const heure = document.createElement("span");
+        heure.classList.add("calendar-event-heure");
+        heure.textContent = heureDebut;
+        element.appendChild(heure);
+    }
+
+    element.appendChild(document.createTextNode(evenement.titre));
+
+    const details = [evenement.titre];
+
+    if (evenement.jour_entier) {
+        details.push("Toute la journée");
+    } else {
+        details.push(heureFin ? `${heureDebut} – ${heureFin}` : heureDebut);
+    }
+
+    if (evenement.lieu) {
+        details.push(evenement.lieu);
+    }
+
+    if (evenement.description) {
+        details.push(evenement.description);
+    }
+
+    element.title = details.join("\n");
+
+    return element;
 }
 
 function renderCalendar() {
@@ -428,17 +560,7 @@ function renderCalendar() {
     const mois = dateAffichee.getMonth();
 
     const premierJourMois = new Date(annee, mois, 1);
-
-    // JS : dimanche = 0
-    // Nous : lundi = 0
-    const decalagePremierJour =
-        (premierJourMois.getDay() + 6) % 7;
-
-    const debutGrille = new Date(
-        annee,
-        mois,
-        1 - decalagePremierJour
-    );
+    const debutGrille = calculerDebutGrille();
 
     const formatter = new Intl.DateTimeFormat("fr-FR", {
         month: "long",
@@ -451,7 +573,7 @@ function renderCalendar() {
     const aujourdHui = new Date();
 
     // 6 semaines × 7 jours
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < NOMBRE_CASES_GRILLE; i++) {
         const dateCase = new Date(debutGrille);
         dateCase.setDate(debutGrille.getDate() + i);
 
@@ -473,6 +595,29 @@ function renderCalendar() {
         const events = document.createElement("div");
         events.classList.add("calendar-events");
 
+        const evenementsDuJour =
+            evenementsParJour.get(cleJour(dateCase)) || [];
+
+        evenementsDuJour
+            .slice(0, MAX_EVENEMENTS_PAR_CASE)
+            .forEach((evenement) => {
+                events.appendChild(creerElementEvenement(evenement));
+            });
+
+        const restants =
+            evenementsDuJour.length - MAX_EVENEMENTS_PAR_CASE;
+
+        if (restants > 0) {
+            const plus = document.createElement("div");
+            plus.classList.add("calendar-event-plus");
+            plus.textContent = `+${restants} autre${restants > 1 ? "s" : ""}`;
+            plus.title = evenementsDuJour
+                .slice(MAX_EVENEMENTS_PAR_CASE)
+                .map((evenement) => evenement.titre)
+                .join("\n");
+            events.appendChild(plus);
+        }
+
         day.appendChild(numero);
         day.appendChild(events);
 
@@ -480,22 +625,36 @@ function renderCalendar() {
     }
 }
 
-prevButton.addEventListener("click", () => {
-    dateAffichee.setMonth(dateAffichee.getMonth() - 1);
+// Changement de mois : on dessine tout de suite la grille, puis on charge
+// les événements du nouveau mois.
+function changerMois(nouvelleDate) {
+    dateAffichee = nouvelleDate;
     renderCalendar();
+    chargerEvenements();
+}
+
+prevButton.addEventListener("click", () => {
+    changerMois(new Date(
+        dateAffichee.getFullYear(),
+        dateAffichee.getMonth() - 1,
+        1
+    ));
 });
 
 nextButton.addEventListener("click", () => {
-    dateAffichee.setMonth(dateAffichee.getMonth() + 1);
-    renderCalendar();
+    changerMois(new Date(
+        dateAffichee.getFullYear(),
+        dateAffichee.getMonth() + 1,
+        1
+    ));
 });
 
 todayButton.addEventListener("click", () => {
-    dateAffichee = new Date();
-    renderCalendar();
+    changerMois(new Date());
 });
 
 renderCalendar();
+chargerEvenements();
 
 mettreAJourEtat();
 setInterval(mettreAJourEtat, 300);

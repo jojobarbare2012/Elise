@@ -583,6 +583,18 @@ main.main-content {
     text-overflow: ellipsis;
 }
 
+.calendar-event-heure {
+    margin-right: 5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.calendar-event-plus {
+    padding: 0 7px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
 .empty-view {
     padding: 30px;
 }
