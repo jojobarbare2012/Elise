@@ -56,7 +56,8 @@ Tauri (src-tauri/src/lib.rs)
   = schéma). Préfixe `outil_`. Modules : `taches` (JSON), `calendrier` (SQLite),
   `applications` (cherche dans le menu Démarrer, les raccourcis du Bureau puis le
   registre ; `data/applications.json` ne contient que des surnoms ; une simple
-  ressemblance de nom ne lance rien sans confirmation).
+  ressemblance de nom ne lance rien sans confirmation),
+  `spotify` (API Web Spotify : lecture et commandes, voir ci-dessous).
   Nouvel outil = fonction documentée dans `modules/` + ajout à la liste dans
   `interfaces/web.py`.
 - **Calendrier** : dates stockées en heure locale sans fuseau
@@ -64,6 +65,14 @@ Tauri (src-tauri/src/lib.rs)
   résolues par `resoudre_date_relative`, jamais par le LLM. Après chaque
   écriture, le module prévient ses abonnés (`abonner_modifications`) ; `web.py`
   diffuse alors `calendrier_modifie` et le front relit `GET /calendrier/evenements`.
+- **Spotify** (`modules/spotify.py`) : **dépendance cloud** (Internet + compte
+  Premium). Connexion PKCE unique : `python -m modules.spotify connexion` ;
+  `data/spotify.json` (client_id) et `data/spotify_jeton.json` hors Git.
+  Pièges de l'appli de bureau : un titre envoyé seul (`uris`) ou le contexte
+  « titres likés » sont ignorés → titre joué dans le contexte de son album,
+  titres likés via la playlist privée miroir « Titres likés (Élise) ».
+  API : `/me/playlists` et `/playlists/{id}/items` (`/users/...` et `/tracks`
+  répondent 403). Chaque commande est vérifiée sur le lecteur avant de répondre.
 - **Front** : `interfaces/static/` (JS vanilla, marked, highlight.js), servi par
   FastAPI et affiché dans la fenêtre Tauri.
 

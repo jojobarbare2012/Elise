@@ -774,7 +774,12 @@ def attendre_etat(condition, delai=DELAI_VERIFICATION_S):
 
 def outil_spotify_controle(action: str):
     """
-    Contrôle la lecture Spotify en cours.
+    Contrôle la lecture Spotify en cours, ou indique quel morceau joue.
+
+    Tu ne peux pas savoir quelle musique joue sans cet outil : dès que
+    l'utilisateur demande ce qui passe (titre, artiste, « c'est quoi
+    cette musique ? »), appelle-le avec action="en_cours" et ne devine
+    jamais.
 
     Args:
         action:
