@@ -38,7 +38,8 @@ Tauri (src-tauri/src/lib.rs)
           ├─ services.stt          Whisper medium (CUDA) + Silero VAD, en processus
           ├─ services.tts          GestionnaireTTS : file génération → file lecture
           ├─ worker_vocal (thread) micro → STT → Elise → TTS
-          └─ WebSocket /ws         événements : transcription, reponse, memory_confirmation
+          └─ WebSocket /ws         diffusé à tous les clients : transcription, reponse,
+                                   memory_confirmation, calendrier_modifie
 ```
 
 - **Tauri ↔ launcher** : le launcher affiche `[SETUP] <service> <ÉTAT>` sur stdout,
@@ -56,6 +57,11 @@ Tauri (src-tauri/src/lib.rs)
   `applications` (lance les chemins de `data/applications.json`).
   Nouvel outil = fonction documentée dans `modules/` + ajout à la liste dans
   `interfaces/web.py`.
+- **Calendrier** : dates stockées en heure locale sans fuseau
+  (`YYYY-MM-DDTHH:MM:SS`, via `normaliser_date`). Les dates relatives sont
+  résolues par `resoudre_date_relative`, jamais par le LLM. Après chaque
+  écriture, le module prévient ses abonnés (`abonner_modifications`) ; `web.py`
+  diffuse alors `calendrier_modifie` et le front relit `GET /calendrier/evenements`.
 - **Front** : `interfaces/static/` (JS vanilla, marked, highlight.js), servi par
   FastAPI et affiché dans la fenêtre Tauri.
 
@@ -70,26 +76,24 @@ Tauri (src-tauri/src/lib.rs)
 
 ## Zones fragiles connues
 
-- Boucle d'outils : les tours après le premier utilisent `self.conversation`,
-  sans contexte temporel ni mémoire.
-- Exception d'un outil non capturée → la réponse plante et `/message-stream`
-  attend indéfiniment (`put(None)` hors `finally`).
-- Une seule instance `Elise` partagée entre HTTP et vocal, sans verrou ;
-  historique jamais tronqué.
+- Une seule instance `Elise` partagée entre HTTP et vocal (sérialisée par
+  `verrou_reponse`) ; historique de conversation jamais tronqué.
 - `EtatElise` modifié par plusieurs threads (le TTS repasse à IDLE en pleine réflexion).
-- Un seul WebSocket actif global ; route `GET /` définie deux fois.
+- Calendrier : un événement n'est listé que si son **début** est dans la période
+  (un événement sur plusieurs jours n'apparaît que le premier jour).
 - Couplage Windows : chemins absolus `C:\Users\Jonathan\...` dans `lib.rs`,
   `netstat`/`taskkill` dans `launcher.py`.
 - Modèle `qwen3:14b` codé en dur à plusieurs endroits ; `ollama.chat` appelé
   directement depuis `core/`.
-- Sécurité : uvicorn sur `0.0.0.0` sans authentification, CSP Tauri désactivée.
+- Sécurité : uvicorn sur `0.0.0.0` sans authentification (toutes les routes,
+  dont `/calendrier/evenements`), CSP Tauri désactivée.
 - `tests/` obsolète (imports `module.tache` qui n'existent plus) ;
   `services/gestionnaire.py` et `services/vocal.py` vides.
 
 ## Feuille de route
 
-1. Stabiliser le cœur : contexte dans la boucle d'outils, exceptions d'outils,
-   verrou sur `repondre()`, fenêtre glissante d'historique.
+1. Stabiliser le cœur : fenêtre glissante d'historique. (Faits le 2026-10-31 :
+   contexte dans la boucle d'outils, exceptions d'outils, verrou sur `repondre()`.)
 2. Reproductibilité : `requirements.txt` par venv, config centrale (modèles, ports,
    chemins), suppression des chemins absolus.
 3. Abstraction LLM (`services/llm.py`) pour rendre le modèle remplaçable.
