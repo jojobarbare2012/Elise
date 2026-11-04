@@ -45,19 +45,30 @@ Tauri (src-tauri/src/lib.rs)
 - **Tauri ↔ launcher** : le launcher affiche `[SETUP] <service> <ÉTAT>` sur stdout,
   Tauri relaie à `loading.html` (événement `setup-status`). Arrêt : Tauri écrit
   `data/shutdown.flag`, le launcher nettoie puis affiche `[SHUTDOWN] READY`.
-- **`Elise.repondre()`** : confirmation mémoire en attente → prompt
-  (`PROMPT_BASE` + `PROMPT_PERSONNALITE` + contexte temporel + souvenirs) →
-  `ollama.chat` streamé avec outils → boucle d'outils (5 tours max) → découpage
-  TTS (`FiltreTTSCODE`, `extraire_segments_tts`) → mémorisation en thread.
-- **Mémoire** (`core/memoire.py`, `data/memoire.db`) : qwen3:4b extrait des
-  souvenirs, `nomic-embed-text` pour la similarité, détection doublon/contradiction,
-  confirmation demandée à Jonathan si un souvenir important est remplacé.
+- **`Elise.repondre()`** : journal → confirmation mémoire en attente → prompt
+  (`PROMPT_BASE` + `PROMPT_PERSONNALITE` + contexte temporel en système, souvenirs
+  ajoutés au message de Jonathan) → `ollama.chat` streamé avec outils → boucle
+  d'outils (5 tours max) → découpage TTS (`FiltreTTSCODE`, `extraire_segments_tts`)
+  → mémorisation en thread.
+- **Contexte Qwen** : `TAILLE_CONTEXTE` (`services/ollama.py`, 8192) doit être
+  passé à chaque appel et au préchargement. Le prompt et les outils prennent déjà
+  ~4200 tokens : aux 4096 par défaut, Ollama jette l'historique sans prévenir.
+- **Mémoire** (`core/memoire.py`, `data/memoire.db`) : table `echanges` = journal
+  brut de toutes les conversations (recherche FTS5). qwen3:4b extrait des souvenirs
+  avec la dernière réplique d'Élise comme contexte. `bge-m3` pour la similarité
+  (`MODELE_EMBEDDING` ; changer de modèle réindexe au démarrage, seuils à recaler).
+  Recherche double : message seul + avec le message précédent. Socle
+  (`lister_socle`) : préférences fortes et infos critiques, injectées à chaque
+  message. Détection doublon/contradiction sur tous les types, un doublon exige
+  `SEUIL_DOUBLON`. Confirmation demandée si un souvenir important est remplacé,
+  différée si Élise vient de poser une question.
 - **Outils** : fonctions Python passées directement à Ollama (signature + docstring
   = schéma). Préfixe `outil_`. Modules : `taches` (JSON), `calendrier` (SQLite),
   `applications` (cherche dans le menu Démarrer, les raccourcis du Bureau puis le
   registre ; `data/applications.json` ne contient que des surnoms ; une simple
   ressemblance de nom ne lance rien sans confirmation),
-  `spotify` (API Web Spotify : lecture et commandes, voir ci-dessous).
+  `spotify` (API Web Spotify : lecture et commandes, voir ci-dessous),
+  `memoire` (retenir, oublier en deux temps, chercher dans souvenirs et journal).
   Nouvel outil = fonction documentée dans `modules/` + ajout à la liste dans
   `interfaces/web.py`.
 - **Calendrier** : dates stockées en heure locale sans fuseau

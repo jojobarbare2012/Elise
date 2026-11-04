@@ -17,6 +17,9 @@ from modules.calendrier import (outil_ajouter_evenement,
                                lister_evenements,
                                abonner_modifications)
 from modules.spotify import outil_spotify_jouer, outil_spotify_controle
+from modules.memoire import (outil_retenir,
+                             outil_oublier,
+                             outil_chercher_memoire)
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from queue import Queue
@@ -78,6 +81,9 @@ assistant = Elise(
         outil_resoudre_date_relative,
         outil_spotify_jouer,
         outil_spotify_controle,
+        outil_retenir,
+        outil_oublier,
+        outil_chercher_memoire,
     ],
 )
 

@@ -3,6 +3,7 @@ from datetime import date, datetime
 import json
 import ollama
 import math
+import re
 import time
 
 CHEMIN_BDD = "data/memoire.db"
@@ -281,6 +282,28 @@ def initialiser_memoire():
         )
         """
     )
+    # Recherche par mots exacts dans le journal, sans dépendance.
+    curseur.execute(
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS echanges_recherche
+        USING fts5(
+            contenu,
+            content='echanges',
+            content_rowid='id',
+            tokenize="unicode61 remove_diacritics 2"
+        )
+        """
+    )
+    curseur.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS echanges_indexer
+        AFTER INSERT ON echanges
+        BEGIN
+            INSERT INTO echanges_recherche(rowid, contenu)
+            VALUES (new.id, new.contenu);
+        END
+        """
+    )
     colonnes = [
         colonne[1]
         for colonne in curseur.execute("PRAGMA table_info(souvenirs)")
@@ -369,6 +392,83 @@ def enregistrer_echange(role: str, contenu: str, source: str):
 
     connexion.commit()
     connexion.close()
+
+def rechercher_echanges(recherche="", debut=None, fin=None, limite=8):
+    """
+    Cherche dans le journal, par mots et/ou par période [debut, fin[.
+    Le message en cours, déjà journalisé, est exclu.
+    """
+    mots = [
+        mot
+        for mot in re.findall(r"\w+", recherche.lower())
+        if len(mot) >= 3
+    ]
+
+    conditions = ["e.id < (SELECT MAX(id) FROM echanges)"]
+    parametres = []
+    jointure = ""
+    ordre = "e.id DESC"
+
+    if mots:
+        jointure = (
+            "JOIN echanges_recherche r ON r.rowid = e.id "
+            "AND echanges_recherche MATCH ?"
+        )
+        parametres.append(
+            " OR ".join(f'"{mot}"*' for mot in mots)
+        )
+        ordre = "r.rank"
+
+    if debut:
+        conditions.append("e.date >= ?")
+        parametres.append(debut)
+
+    if fin:
+        conditions.append("e.date < ?")
+        parametres.append(fin)
+
+    parametres.append(limite)
+
+    connexion = sqlite3.connect(CHEMIN_BDD)
+    connexion.row_factory = sqlite3.Row
+    curseur = connexion.cursor()
+
+    curseur.execute(
+        f"""
+        SELECT e.date, e.role, e.contenu
+        FROM echanges e
+        {jointure}
+        WHERE {" AND ".join(conditions)}
+        ORDER BY {ordre}
+        LIMIT ?
+        """,
+        parametres
+    )
+
+    echanges = [dict(echange) for echange in curseur.fetchall()]
+    connexion.close()
+
+    return echanges
+
+def trouver_souvenir_actif(id_souvenir: int):
+    connexion = sqlite3.connect(CHEMIN_BDD)
+    connexion.row_factory = sqlite3.Row
+    curseur = connexion.cursor()
+
+    curseur.execute(
+        """
+        SELECT *
+        FROM souvenirs
+        WHERE id = ?
+          AND actif = 1
+        """,
+        (id_souvenir,)
+    )
+
+    souvenir = curseur.fetchone()
+    connexion.close()
+
+    return souvenir
 
 def trouver_candidats_conflit(nouveau_souvenir):
     nouveau_embedding = generer_embedding_souvenir(
