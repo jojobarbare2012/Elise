@@ -28,7 +28,11 @@ class STT:
         self.taille_bloc = 512
         self.duree_bloc = self.taille_bloc / self.frequence
 
-    def ecouter(self, stop_event=None):
+    def ecouter(self, stop_event=None, interruption=None):
+        """
+        interruption : Event qui fait rendre la main (retour None) tant
+        que Jonathan n'a pas commencé à parler. S'il parle, on le laisse finir.
+        """
         import queue
 
         file_audio = queue.Queue()
@@ -60,6 +64,14 @@ class STT:
             while True:
                 if stop_event is not None and not stop_event.is_set():
                     print("[STT] Écoute annulée.", flush=True)
+                    return None
+
+                if (
+                        interruption is not None
+                        and interruption.is_set()
+                        and not a_commence
+                ):
+                    print("[STT] Écoute interrompue.", flush=True)
                     return None
 
                 try:

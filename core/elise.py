@@ -205,6 +205,16 @@ def construire_texte_confirmation(confirmation):
         "Je mets à jour ma mémoire ?"
     )
 
+def decouper_pour_tts(texte):
+    """Découpe un texte complet, hors streaming, en phrases pour le TTS."""
+    segments, reste = extraire_segments_tts(texte)
+
+    if reste.strip():
+        segments.append(reste.strip())
+
+    return segments
+
+
 def extraire_segments_tts(
     buffer,
     taille_min_coupure=90,
@@ -799,6 +809,9 @@ class Elise:
 
                 if callback_stream:
                     callback_stream(texte_confirmation)
+
+                if callback:
+                    callback(texte_confirmation)
 
                 if callback_fin:
                     callback_fin()

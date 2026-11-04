@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from core.elise import Elise
+from core.confirmation_vocale import ConfirmationVocale
+from core.elise import Elise, decouper_pour_tts
 from modules.applications import lancer_application_locale
 from modules.taches import (
     outil_ajouter_tache,
@@ -91,6 +92,7 @@ print("[WEB INIT] après Elise", flush=True)
 
 
 vocal_event = Event()
+confirmation_vocale = ConfirmationVocale()
 
 
 gestionnaire_tts = tts.GestionnaireTTS()
@@ -120,6 +122,28 @@ def envoyer_confirmation_memoire(texte):
         "type": "memory_confirmation",
         "content": texte
     })
+
+    # Lue par worker_vocal, jamais pendant que le micro écoute.
+    if vocal_event.is_set():
+        confirmation_vocale.proposer(
+            assistant.id_modification_proposee,
+            texte
+        )
+
+
+def lire_confirmation_en_attente():
+    texte = confirmation_vocale.prendre(assistant.id_modification_proposee)
+
+    if texte is None:
+        return
+
+    print("[VOCAL] Lecture de la confirmation mémoire", flush=True)
+
+    for segment in decouper_pour_tts(texte):
+        gestionnaire_tts.envoyer(segment)
+
+    while gestionnaire_tts.est_occupe():
+        time.sleep(0.05)
 
 
 @app.post("/message")
@@ -242,6 +266,8 @@ def worker_vocal():
 
             print("[VOCAL] TTS libre", flush=True)
 
+            lire_confirmation_en_attente()
+
             moteur_stt = stt.obtenir()
 
             print(
@@ -262,7 +288,8 @@ def worker_vocal():
                 print("[VOCAL] Entrée dans ecouter()", flush=True)
 
                 message = moteur_stt.ecouter(
-                    stop_event=vocal_event
+                    stop_event=vocal_event,
+                    interruption=confirmation_vocale.evenement
                 )
 
                 print(

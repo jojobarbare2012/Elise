@@ -524,6 +524,16 @@ class TestConfirmations(AvecElise):
 
         self.assertEqual(self.appliquees, [9])
 
+    def test_reponse_a_la_confirmation_lue_a_voix_haute(self):
+        self.reponse("Noté.")
+        self.elise.repondre("J'ai déménagé.")
+        self.memoriser(self.confirmation(7))
+        lus = []
+
+        self.elise.repondre("oui", callback=lus.append)
+
+        self.assertEqual(lus, ["Mémoire mise à jour."])
+
     def test_attend_la_fin_de_la_reponse_en_cours(self):
         self.reponse("Noté.")
         self.elise.repondre("J'ai déménagé.")
