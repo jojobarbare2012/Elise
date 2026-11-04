@@ -11,6 +11,7 @@ from .memoire import (
 )
 from threading import Thread, Lock
 from .personnalite import PROMPT_PERSONNALITE
+from services.ollama import TAILLE_CONTEXTE
 
 PROMPT_BASE = """
 Tu te nommes Élise, tu es l'assistante personnelle de Jonathan.
@@ -765,7 +766,8 @@ class Elise:
                 tools=self.outils,
                 stream=True,
                 options={
-                    "num_predict": 4096
+                    "num_predict": 4096,
+                    "num_ctx": TAILLE_CONTEXTE
                 },
                 think=False
             )
@@ -818,7 +820,8 @@ class Elise:
                     tools=self.outils,
                     stream=True,
                     options={
-                        "num_predict": 4096
+                        "num_predict": 4096,
+                        "num_ctx": TAILLE_CONTEXTE
                     },
                     think=False
                 )

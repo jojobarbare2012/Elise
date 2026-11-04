@@ -9,6 +9,11 @@ import urllib.request
 URL_OLLAMA = "http://127.0.0.1:11434"
 MODELE_PRINCIPAL = "qwen3:14b"
 
+# Le prompt et les outils prennent déjà ~4000 tokens : avec les 4096
+# par défaut d'Ollama, l'historique était jeté dès quelques échanges.
+# 8192 coûte ~830 Mo de VRAM de plus.
+TAILLE_CONTEXTE = 8192
+
 
 def est_actif():
     try:
@@ -60,7 +65,12 @@ def charger_modele(
         ],
         "stream": False,
         "think": False,
-        "keep_alive": keep_alive
+        "keep_alive": keep_alive,
+        # Doit rester identique à core/elise.py, sinon Ollama
+        # recharge le modèle au premier message.
+        "options": {
+            "num_ctx": TAILLE_CONTEXTE
+        }
     }).encode("utf-8")
 
     requete = urllib.request.Request(
