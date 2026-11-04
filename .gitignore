@@ -33,6 +33,7 @@ data/temp/*
 # Données personnelles d'Élise (recréées automatiquement si absentes)
 data/memoire.db
 data/calendrier.db
+data/profil.json
 
 # Spotify : configuration du compte et jeton de connexion
 data/spotify.json
