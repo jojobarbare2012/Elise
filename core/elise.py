@@ -3,15 +3,20 @@ from .etat import EtatElise
 import time
 from .memoire import (
     initialiser_memoire,
+    enregistrer_echange,
     analyser_message_pour_memoire,
     traiter_nouveau_souvenir,
     trouver_souvenirs_similaires,
+    lister_socle,
     appliquer_modification_en_attente,
     annuler_modification_en_attente
 )
 from threading import Thread, Lock
 from .personnalite import PROMPT_PERSONNALITE
 from services.ollama import TAILLE_CONTEXTE
+
+# La question posée à Jonathan est à la fin de la réplique.
+TAILLE_MAX_REPLIQUE = 300
 
 PROMPT_BASE = """
 Tu te nommes Élise, tu es l'assistante personnelle de Jonathan.
@@ -168,6 +173,11 @@ def normaliser_reponse_confirmation(message: str):
         return False
 
     return None
+
+
+def formater_souvenir(souvenir):
+    # La date permet de situer « il y a deux semaines » ou « en mars ».
+    return f"- {souvenir['contenu']} (noté le {souvenir['date_ajout']})"
 
 
 def construire_texte_confirmation(confirmation):
@@ -400,13 +410,27 @@ class Elise:
         # Modification mémoire proposée à l'utilisateur, valable
         # uniquement pour son prochain message.
         self.id_modification_proposee = None
+        # Confirmations qui attendent un moment sans question en cours.
+        self.confirmations_en_file = []
         initialiser_memoire()
 
+
+    def _journaliser(self, role, contenu, source):
+        """Une panne du journal ne doit jamais bloquer une réponse."""
+        if not contenu:
+            return
+
+        try:
+            enregistrer_echange(role, contenu, source)
+
+        except Exception as erreur:
+            print("[JOURNAL] ERREUR :", repr(erreur), flush=True)
 
     def _lancer_memorisation_background(
             self,
             message,
-            callback_stream=None
+            callback_stream=None,
+            replique_precedente=None
     ):
         """
         Lance la mémorisation dans un thread daemon afin de ne pas
@@ -414,34 +438,47 @@ class Elise:
         """
         Thread(
             target=self._memoriser_message_background,
-            args=(message, callback_stream),
+            args=(message, callback_stream, replique_precedente),
             daemon=True
         ).start()
 
-    def _recuperer_contexte_memoire(self, message):
-        candidats = trouver_souvenirs_similaires(message)
+    def _derniere_replique(self):
+        """Fin de la dernière réplique d'Élise, pour l'extraction."""
+        for message in reversed(self.conversation):
+            if message["role"] == "assistant" and message["content"]:
+                return message["content"][-TAILLE_MAX_REPLIQUE:]
 
-        if not candidats:
-            return None
+        return None
 
-        souvenirs = [
-            candidat["souvenir"]["contenu"]
-            for candidat in candidats
+    def _dernier_message_jonathan(self):
+        for message in reversed(self.conversation):
+            if message["role"] == "user":
+                return message["content"]
+
+        return None
+
+    def _recuperer_contexte_memoire(self, message, message_precedent=None):
+        socle = lister_socle()
+        ids_socle = {souvenir["id"] for souvenir in socle}
+
+        souvenirs = list(socle) + [
+            candidat["souvenir"]
+            for candidat in trouver_souvenirs_similaires(
+                message,
+                message_precedent
+            )
+            if candidat["souvenir"]["id"] not in ids_socle
         ]
 
+        if not souvenirs:
+            return None
+
         return (
-                "Les informations suivantes proviennent de ta mémoire persistante "
-                "et concernent l'utilisateur actuel :\n"
-                + "\n".join(
-            f"- {souvenir}"
-            for souvenir in souvenirs
-        )
-                + "\n\n"
-                  "Ces souvenirs sont des informations que tu connais déjà. "
-                  "Lorsqu'un souvenir répond directement à la question actuelle, "
-                  "utilise-le pour répondre. "
-                  "Ne dis jamais que tu ne connais pas ou que tu ne peux pas consulter "
-                  "une information explicitement présente dans cette mémoire."
+            "[Mémoire, à appliquer si c'est utile, sans la citer mot à mot]\n"
+            + "\n".join(
+                formater_souvenir(souvenir)
+                for souvenir in souvenirs
+            )
         )
 
     def _traiter_stream(self, stream, callback=None,callback_stream=None,debut_reponse=None):
@@ -586,8 +623,11 @@ class Elise:
 
         return nombre_executes
 
-    def _memoriser_message(self, message):
-        analyse = analyser_message_pour_memoire(message)
+    def _memoriser_message(self, message, replique_precedente=None):
+        analyse = analyser_message_pour_memoire(
+            message,
+            replique_precedente
+        )
 
         resultats = []
 
@@ -605,35 +645,65 @@ class Elise:
     def _memoriser_message_background(
             self,
             message,
-            callback_confirmation=None
+            callback_confirmation=None,
+            replique_precedente=None
     ):
         print("[MEMOIRE] THREAD lancé pour :", repr(message), flush=True)
-        resultats = self._memoriser_message(message)
 
-        confirmation = self._confirmation_memoire_requise(
-            resultats
-        )
+        try:
+            resultats = self._memoriser_message(message, replique_precedente)
 
-        if confirmation is None:
+        except Exception as erreur:
+            print("[MEMOIRE] ERREUR :", repr(erreur), flush=True)
             return
 
+        confirmations = [
+            resultat
+            for resultat in resultats
+            if isinstance(resultat, dict)
+            and resultat.get("statut") == "confirmation_requise"
+        ]
+
+        if not confirmations:
+            return
+
+        # Attend la fin d'une éventuelle réponse en cours.
+        with self.verrou_reponse:
+            self.confirmations_en_file.extend(confirmations)
+            self._proposer_confirmation(callback_confirmation)
+
+    def _proposer_confirmation(self, callback_confirmation=None):
+        """
+        Pose la prochaine question mémoire, à appeler sous verrou_reponse.
+        Si Élise vient de poser une question, on attend : le « oui » de
+        Jonathan lui répondrait à elle, pas à la mémoire.
+        """
+        if self.id_modification_proposee is not None:
+            return
+
+        if not self.confirmations_en_file:
+            return
+
+        derniere_replique = self._derniere_replique() or ""
+
+        if derniere_replique.rstrip().endswith("?"):
+            print("[MEMOIRE] Confirmation différée.", flush=True)
+            return
+
+        confirmation = self.confirmations_en_file.pop(0)
         self.id_modification_proposee = confirmation["id_modification"]
 
         texte_confirmation = construire_texte_confirmation(confirmation)
 
+        # Qwen doit savoir ce qui a été demandé si Jonathan répond à côté.
+        self.conversation.append({
+            "role": "assistant",
+            "content": texte_confirmation
+        })
+        self._journaliser("assistant", texte_confirmation, "memoire")
+
         if callback_confirmation:
             callback_confirmation(texte_confirmation)
-
-
-    def _confirmation_memoire_requise(self, resultats):
-        for resultat in resultats:
-            if (
-                    isinstance(resultat, dict)
-                    and resultat.get("statut") == "confirmation_requise"
-            ):
-                return resultat
-
-        return None
 
     def repondre(
             self,
@@ -641,7 +711,8 @@ class Elise:
             callback=None,
             callback_stream=None,
             callback_fin=None,
-            callback_confirmation=None
+            callback_confirmation=None,
+            source="web"
     ):
         """
         Une seule réponse à la fois : les appels concurrents
@@ -653,7 +724,8 @@ class Elise:
                 callback,
                 callback_stream,
                 callback_fin,
-                callback_confirmation
+                callback_confirmation,
+                source
             )
 
     def _repondre(
@@ -662,8 +734,15 @@ class Elise:
             callback=None,
             callback_stream=None,
             callback_fin=None,
-            callback_confirmation=None
+            callback_confirmation=None,
+            source="web"
     ):
+        self._journaliser("user", message, source)
+
+        # À lire avant d'ajouter le message de Jonathan et la réponse.
+        replique_precedente = self._derniere_replique()
+        message_precedent = self._dernier_message_jonathan()
+
         id_modification = self.id_modification_proposee
 
         if id_modification is not None:
@@ -704,11 +783,19 @@ class Elise:
                     "content": texte_confirmation
                 })
 
+                self._journaliser(
+                    "assistant",
+                    texte_confirmation,
+                    source
+                )
+
                 if callback_stream:
                     callback_stream(texte_confirmation)
 
                 if callback_fin:
                     callback_fin()
+
+                self._proposer_confirmation(callback_confirmation)
 
                 return texte_confirmation
 
@@ -717,7 +804,10 @@ class Elise:
             "content": message
         })
 
-        contexte_memoire = self._recuperer_contexte_memoire(message)
+        contexte_memoire = self._recuperer_contexte_memoire(
+            message,
+            message_precedent
+        )
 
         messages_pour_reponse = [
             message.copy()
@@ -731,12 +821,13 @@ class Elise:
                 + contexte_temporel
         )
 
+        # Dans le message et non dans le système : mesuré le 2026-11-04,
+        # Qwen ignorait une allergie placée dans le système (0/4) et en
+        # tient compte ici (4/4). self.conversation reste sans mémoire.
         if contexte_memoire:
-            messages_pour_reponse[0]["content"] += (
+            messages_pour_reponse[-1]["content"] += (
                     "\n\n"
-                    "=== MÉMOIRE PERSISTANTE ===\n"
                     + contexte_memoire
-                    + "\n=== FIN MÉMOIRE ===\n"
             )
 
         self.etat.changer("THINKING")
@@ -807,11 +898,12 @@ class Elise:
 
                 self._executer_outils(tool_calls)
 
-                # Système enrichi (date + mémoire) + historique à jour.
+                # Système (date) et message (mémoire) enrichis, puis
+                # ce qui s'est ajouté depuis : réponses et outils.
                 # self.conversation reste sans contexte temporaire.
                 messages_tour = (
-                    [messages_pour_reponse[0]]
-                    + self.conversation[1:]
+                    messages_pour_reponse
+                    + self.conversation[len(messages_pour_reponse):]
                 )
 
                 stream = ollama.chat(
@@ -871,12 +963,17 @@ class Elise:
             # Fin de réponse
             # ------------------------------------------------------------
 
+            self._journaliser("assistant", texte_complet, source)
+
             if callback_fin:
                 callback_fin()
 
+            self._proposer_confirmation(callback_confirmation)
+
             self._lancer_memorisation_background(
                 message,
-                callback_confirmation
+                callback_confirmation,
+                replique_precedente
             )
 
             return texte_complet

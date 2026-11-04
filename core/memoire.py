@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 import json
 import ollama
 import math
@@ -16,8 +16,16 @@ TYPES_SOUVENIRS = [
 
 MODELE_MEMOIRE = "qwen3:4b"
 
-# nomic-embed-text est petit (~335 Mo) : on le garde chargé pendant une
-# conversation pour éviter ~1 s de rechargement à chaque message.
+# bge-m3 est multilingue : sur 100 souvenirs français de test, le bon
+# souvenir sort dans le top 5 à 100 % contre 65 % pour nomic-embed-text.
+# Changer de modèle suffit : les souvenirs sont réindexés au démarrage.
+# Certains modèles demandent un préfixe (nomic : "search_document: ").
+MODELE_EMBEDDING = "bge-m3"
+PREFIXE_DOCUMENT = ""
+PREFIXE_REQUETE = ""
+
+# Petit (~700 Mo) : on le garde chargé pendant une conversation pour
+# éviter ~2 s de rechargement à chaque message.
 # Ollama le décharge seul après ce délai sans appel.
 DUREE_MAINTIEN_EMBEDDING = "5m"
 
@@ -41,6 +49,14 @@ Dès que Jonathan affirme quelque chose de durable sur lui-même :
 Une information future annoncée (déménagement, nouveau travail...)
 se retient aussi.
 
+=== RÉPLIQUE D'ÉLISE ===
+
+La dernière réplique d'Élise peut être fournie avant le message.
+Elle sert seulement à comprendre une réponse courte de Jonathan.
+Ce qu'Élise dit n'est jamais un souvenir, sauf si Jonathan le confirme
+ou y répond clairement. Élise ne parle pas de Jonathan quand elle
+explique un sujet général.
+
 === À NE PAS RETENIR ===
 
 - une question ou une demande d'explication,
@@ -48,6 +64,7 @@ se retient aussi.
   un rendez-vous ou une tâche, mettre un minuteur...),
 - la politesse et les banalités (salut, merci, la météo),
 - un événement unique sans conséquence durable,
+- une activité limitée à aujourd'hui, ce soir ou cette semaine,
 - une humeur passagère,
 - ce que Jonathan n'a pas réellement affirmé.
 
@@ -55,11 +72,12 @@ se retient aussi.
 
 Chaque souvenir :
 - contenu : une seule information, en français, compréhensible seule,
-  qui commence par « Jonathan » ;
+  qui nomme Jonathan ;
 - type : preference, projet, personnel, contexte ou objectif ;
 - importance : faible, moyenne, forte ou critique
-  (critique = santé ou sécurité, forte = proches, lieu de vie,
-  projet principal, préférence de réponse).
+  (critique = santé ou sécurité : allergie, maladie, traitement ;
+  forte = proches, lieu de vie, régime alimentaire, projet principal,
+  préférence de réponse).
 
 Un message peut contenir zéro, un ou plusieurs souvenirs.
 
@@ -71,12 +89,36 @@ Message : « Explique-moi les WebSockets simplement. »
 Message : « Ajoute dentiste vendredi à 10h dans mon calendrier. »
 {"souvenirs": []}
 
+Message : « Je bosse sur mon projet ce soir. »
+{"souvenirs": []}
+
+Élise a dit : « Un chat dort environ seize heures par jour. »
+Message : « Ah ok, merci. »
+{"souvenirs": []}
+
+Élise a dit : « Elle s'appelle comment, ta copine ? »
+Message : « Léa. »
+{"souvenirs": [
+  {"contenu": "La copine de Jonathan s'appelle Léa.", "type": "personnel", "importance": "forte"}
+]}
+
+Élise a dit : « Je te tutoie, ça te va ? »
+Message : « Oui, toujours. »
+{"souvenirs": [
+  {"contenu": "Jonathan veut qu'Élise le tutoie.", "type": "preference", "importance": "forte"}
+]}
+
 Message : « J'ai oublié de sauvegarder mon fichier. »
 {"souvenirs": []}
 
 Message : « J'ai un chat qui s'appelle Pixel. »
 {"souvenirs": [
   {"contenu": "Jonathan a un chat nommé Pixel.", "type": "personnel", "importance": "forte"}
+]}
+
+Message : « Je suis allergique aux crevettes. »
+{"souvenirs": [
+  {"contenu": "Jonathan est allergique aux crevettes.", "type": "personnel", "importance": "critique"}
 ]}
 
 Message : « Je suis devenu végétarien, et ne me mets plus d'emojis
@@ -118,6 +160,8 @@ Règles :
 - Si deux souvenirs donnent des valeurs différentes à une chose
   unique (le projet principal, la ville où il habite...),
   c'est une contradiction.
+- Deux souvenirs sur des personnes différentes (Jonathan et son frère,
+  par exemple) ne sont jamais une contradiction ni un doublon.
 - Si le nouveau souvenir change le statut d'une information
   (envisagé → réel, secondaire → principal, ancien → actuel),
   ce n'est PAS un doublon.
@@ -140,6 +184,19 @@ Réponse :
   "8": {"raison": "Il ne peut pas avoir un chien et aucun animal.", "relation": "contradiction"},
   "9": {"raison": "Même chien, la race est une information en plus.", "relation": "complement"},
   "10": {"raison": "Les échecs n'ont aucun rapport avec le chien.", "relation": "aucun_conflit"}
+}}
+
+Autre exemple, avec une personne différente :
+
+Nouveau souvenir :
+« Le père de Jonathan habite à Brest. »
+
+Souvenirs existants :
+[11] Jonathan habite à Paris.
+
+Réponse :
+{"relations": {
+  "11": {"raison": "Le père et Jonathan sont deux personnes différentes.", "relation": "aucun_conflit"}
 }}
 """
 
@@ -168,8 +225,10 @@ RELATIONS_SOUVENIRS = {
     "aucun_conflit"
 }
 
+# Calibrés pour bge-m3, à revoir si le modèle d'embedding change.
 SEUIL_PERTINENCE = 0.40
-SEUIL_CONFLIT = 0.55
+SEUIL_CONFLIT = 0.70
+SEUIL_DOUBLON = 0.93
 
 NIVEAUX_IMPORTANCE = {
     "faible": 3,
@@ -177,6 +236,9 @@ NIVEAUX_IMPORTANCE = {
     "forte": 8,
     "critique": 10
 }
+
+# Le socle occupe le prompt à chaque message : on le garde court.
+TAILLE_MAX_SOCLE = 15
 
 def initialiser_memoire():
     connexion = sqlite3.connect(CHEMIN_BDD)
@@ -206,6 +268,105 @@ def initialiser_memoire():
         )
         """
     )
+    # Journal brut des conversations : rien n'est filtré ni résumé, pour
+    # pouvoir relancer l'extraction plus tard avec un meilleur modèle.
+    curseur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS echanges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            role TEXT NOT NULL,
+            contenu TEXT NOT NULL,
+            source TEXT NOT NULL
+        )
+        """
+    )
+    colonnes = [
+        colonne[1]
+        for colonne in curseur.execute("PRAGMA table_info(souvenirs)")
+    ]
+
+    if "modele_embedding" not in colonnes:
+        curseur.execute(
+            """
+            ALTER TABLE souvenirs
+            ADD COLUMN modele_embedding TEXT NOT NULL DEFAULT ''
+            """
+        )
+
+    connexion.commit()
+    connexion.close()
+
+    try:
+        reindexer_souvenirs()
+
+    except Exception as erreur:
+        # Ollama absent : on retentera au prochain démarrage. D'ici là,
+        # seuls les souvenirs déjà indexés sont trouvés.
+        print("[MEMOIRE] Réindexation impossible :", repr(erreur), flush=True)
+
+def reindexer_souvenirs():
+    """Recalcule les embeddings produits par un autre modèle."""
+    connexion = sqlite3.connect(CHEMIN_BDD)
+    connexion.row_factory = sqlite3.Row
+    curseur = connexion.cursor()
+
+    curseur.execute(
+        """
+        SELECT id, contenu
+        FROM souvenirs
+        WHERE modele_embedding != ?
+        """,
+        (MODELE_EMBEDDING,)
+    )
+
+    souvenirs = curseur.fetchall()
+
+    for souvenir in souvenirs:
+        embedding = generer_embedding_souvenir(souvenir["contenu"])
+
+        curseur.execute(
+            """
+            UPDATE souvenirs
+            SET embedding = ?,
+                modele_embedding = ?
+            WHERE id = ?
+            """,
+            (
+                json.dumps(embedding),
+                MODELE_EMBEDDING,
+                souvenir["id"]
+            )
+        )
+        connexion.commit()
+
+    connexion.close()
+
+    if souvenirs:
+        print(
+            f"[MEMOIRE] {len(souvenirs)} souvenirs réindexés "
+            f"avec {MODELE_EMBEDDING}.",
+            flush=True
+        )
+
+def enregistrer_echange(role: str, contenu: str, source: str):
+    """Ajoute un message au journal (date locale, à la seconde)."""
+    connexion = sqlite3.connect(CHEMIN_BDD)
+    curseur = connexion.cursor()
+
+    curseur.execute(
+        """
+        INSERT INTO echanges(date, role, contenu, source)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            datetime.now().isoformat(timespec="seconds"),
+            role,
+            contenu,
+            source
+        )
+    )
+
     connexion.commit()
     connexion.close()
 
@@ -216,10 +377,9 @@ def trouver_candidats_conflit(nouveau_souvenir):
 
     candidats = []
 
+    # Tous types confondus : « habite à Nantes » (contexte) et « a déménagé
+    # à Lyon » (personnel) se contredisent même classés différemment.
     for souvenir in lister_souvenirs_actifs():
-
-        if souvenir["type"] != nouveau_souvenir["type"]:
-            continue
 
         embedding_souvenir = json.loads(
             souvenir["embedding"]
@@ -269,8 +429,9 @@ def ajouter_souvenir(contenu:str, type_souvenir:str, importance:int, source:str)
                               date_modification,
                               actif,
                               source,
-                              embedding)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                              embedding,
+                              modele_embedding)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             contenu,
@@ -280,7 +441,8 @@ def ajouter_souvenir(contenu:str, type_souvenir:str, importance:int, source:str)
             date_du_jour,
             1,
             source,
-            embedding_json
+            embedding_json,
+            MODELE_EMBEDDING
         )
     )
     connexion.commit()
@@ -288,6 +450,8 @@ def ajouter_souvenir(contenu:str, type_souvenir:str, importance:int, source:str)
     return True
 
 def lister_souvenirs_actifs():
+    # Des vecteurs d'un autre modèle ne sont pas comparables : tant
+    # qu'un souvenir n'est pas réindexé, il est ignoré par les recherches.
     connexion = sqlite3.connect(CHEMIN_BDD)
     connexion.row_factory= sqlite3.Row
     curseur = connexion.cursor()
@@ -297,7 +461,9 @@ def lister_souvenirs_actifs():
         SELECT *
         FROM souvenirs
         WHERE actif = 1
-        """
+          AND modele_embedding = ?
+        """,
+        (MODELE_EMBEDDING,)
     )
 
     souvenirs = curseur.fetchall()
@@ -305,6 +471,39 @@ def lister_souvenirs_actifs():
     connexion.close()
 
     return souvenirs
+
+def lister_socle():
+    """
+    Souvenirs injectés à chaque message, même sans rapport avec lui :
+    une préférence de réponse ou une allergie compte toujours.
+    """
+    connexion = sqlite3.connect(CHEMIN_BDD)
+    connexion.row_factory = sqlite3.Row
+    curseur = connexion.cursor()
+
+    curseur.execute(
+        """
+        SELECT *
+        FROM souvenirs
+        WHERE actif = 1
+          AND (
+              importance >= ?
+              OR (type = 'preference' AND importance >= ?)
+          )
+        ORDER BY importance DESC, date_modification DESC
+        LIMIT ?
+        """,
+        (
+            NIVEAUX_IMPORTANCE["critique"],
+            NIVEAUX_IMPORTANCE["forte"],
+            TAILLE_MAX_SOCLE
+        )
+    )
+
+    socle = curseur.fetchall()
+    connexion.close()
+
+    return socle
 
 def parser_reponse_memoire(contenu: str):
     try:
@@ -341,7 +540,21 @@ def construire_schema_analyse_memoire():
     }
 
 
-def analyser_message_pour_memoire(message):
+def formater_message_analyse(message, contexte=None):
+    """
+    Ajoute la dernière réplique d'Élise : sans elle, une réponse
+    comme « Léa. » ne veut rien dire.
+    """
+    if not contexte:
+        return f"Message : « {message} »"
+
+    return (
+        f"Élise a dit : « {contexte} »\n"
+        f"Message : « {message} »"
+    )
+
+
+def analyser_message_pour_memoire(message, contexte=None):
     schema = construire_schema_analyse_memoire()
 
     reponse = ollama.chat(
@@ -353,7 +566,7 @@ def analyser_message_pour_memoire(message):
             },
             {
                 "role": "user",
-                "content": message
+                "content": formater_message_analyse(message, contexte)
             }
         ],
         format=schema,
@@ -519,7 +732,7 @@ def souvenir_existe_deja(contenu: str) -> bool:
 
 def generer_embedding(texte: str):
     reponse = ollama.embeddings(
-        model="nomic-embed-text",
+        model=MODELE_EMBEDDING,
         prompt=texte,
         keep_alive=DUREE_MAINTIEN_EMBEDDING,
     )
@@ -528,13 +741,13 @@ def generer_embedding(texte: str):
 
 def generer_embedding_souvenir(texte: str):
     return generer_embedding(
-        f"search_document: {texte}"
+        f"{PREFIXE_DOCUMENT}{texte}"
     )
 
 
 def generer_embedding_requete(texte: str):
     return generer_embedding(
-        f"search_query: {texte}"
+        f"{PREFIXE_REQUETE}{texte}"
     )
 
 def similarite_cosinus(a, b):
@@ -546,10 +759,21 @@ def similarite_cosinus(a, b):
     return produit_scalaire / (norme_a * norme_b)
 
 
-def trouver_souvenirs_similaires(nouveau_contenu):
-    nouveau_embedding = generer_embedding_requete(
-        nouveau_contenu
-    )
+def trouver_souvenirs_similaires(nouveau_contenu, message_precedent=None):
+    """
+    Cherche avec le message seul et, si possible, avec le message
+    précédent : « Et lui il fait quoi ? » ne veut rien dire tout seul,
+    et garder les deux recherches ne pénalise pas un changement de sujet.
+    """
+    requetes = [nouveau_contenu]
+
+    if message_precedent:
+        requetes.append(f"{message_precedent} {nouveau_contenu}")
+
+    embeddings_requetes = [
+        generer_embedding_requete(requete)
+        for requete in requetes
+    ]
     souvenirs = lister_souvenirs_actifs()
 
     candidats = []
@@ -559,9 +783,9 @@ def trouver_souvenirs_similaires(nouveau_contenu):
             souvenir["embedding"]
         )
 
-        score = similarite_cosinus(
-            embedding_souvenir,
-            nouveau_embedding
+        score = max(
+            similarite_cosinus(embedding_souvenir, embedding_requete)
+            for embedding_requete in embeddings_requetes
         )
 
         candidats.append({
@@ -842,13 +1066,23 @@ def traiter_nouveau_souvenir(nouveau_souvenir):
 
     if analyse is None:
         print("[MEMOIRE] Impossible d'analyser les relations.")
-        return False
+        return None
 
     relations = analyse["relations"]
 
-    # 1. Si un doublon existe, inutile d'aller plus loin.
+    # 1. Si un doublon existe, inutile d'aller plus loin. Le texte doit
+    # être très proche : qwen3:4b appelle parfois doublon une information
+    # nouvelle sur le même sujet, qui serait alors perdue.
+    scores = {
+        candidat["souvenir"]["id"]: candidat["score"]
+        for candidat in candidats
+    }
+
     for relation in relations:
-        if relation["relation"] == "doublon":
+        if (
+                relation["relation"] == "doublon"
+                and scores[relation["id"]] >= SEUIL_DOUBLON
+        ):
             return False
 
     # 2. Récupération de toutes les contradictions.

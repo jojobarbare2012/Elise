@@ -302,7 +302,8 @@ def worker_vocal():
                     message,
                     callback=envoyer_au_tts,
                     callback_stream=envoyer_reponse_websocket,
-                    callback_confirmation=envoyer_confirmation_memoire
+                    callback_confirmation=envoyer_confirmation_memoire,
+                    source="vocal"
                 )
 
             except Exception as erreur:
