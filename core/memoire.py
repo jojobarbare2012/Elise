@@ -322,6 +322,17 @@ def initialiser_memoire():
             """
         )
 
+    # La question de confirmation n'existe qu'en mémoire vive : après un
+    # redémarrage plus rien ne peut confirmer ces lignes, on les retire.
+    curseur.execute("DELETE FROM modifications_memoire_en_attente")
+
+    if curseur.rowcount:
+        print(
+            f"[MEMOIRE] {curseur.rowcount} modification(s) en attente "
+            "abandonnée(s) au redémarrage.",
+            flush=True
+        )
+
     connexion.commit()
     connexion.close()
 

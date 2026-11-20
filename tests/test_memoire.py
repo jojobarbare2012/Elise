@@ -369,6 +369,43 @@ class TestReindexation(BaseTemporaire):
         self.assertEqual(appels, [])
 
 
+class TestModificationsOrphelines(BaseTemporaire):
+    """La question de confirmation ne vit qu'en mémoire vive (elle est
+    consommée au message suivant) : après un redémarrage, plus rien ne
+    peut la confirmer, la ligne en base serait orpheline."""
+
+    def mettre_en_attente(self):
+        self.ajouter("Jonathan habite à Nantes.", "contexte", 8)
+        memoire.enregistrer_modification_en_attente(
+            {"contenu": "Jonathan habite à Lyon.", "type": "contexte",
+             "importance": 8},
+            [{"id": 1}]
+        )
+
+    def en_attente(self):
+        return self.requete(
+            "SELECT COUNT(*) FROM modifications_memoire_en_attente"
+        )
+
+    def test_demarrage_supprime_les_modifications_en_attente(self):
+        self.mettre_en_attente()
+        self.assertEqual(self.en_attente(), [(1,)])
+
+        memoire.initialiser_memoire()  # = démarrage d'Élise
+
+        self.assertEqual(self.en_attente(), [(0,)])
+
+    def test_demarrage_ne_touche_pas_aux_souvenirs(self):
+        self.mettre_en_attente()
+
+        memoire.initialiser_memoire()
+
+        self.assertEqual(
+            [s["contenu"] for s in memoire.lister_souvenirs_actifs()],
+            ["Jonathan habite à Nantes."]
+        )
+
+
 class TestRecherche(BaseTemporaire):
     def test_message_precedent_utilise(self):
         self.ajouter("Hugo est kiné à Rennes.")
