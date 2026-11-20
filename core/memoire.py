@@ -17,6 +17,11 @@ TYPES_SOUVENIRS = [
 
 MODELE_MEMOIRE = "qwen3:4b"
 
+# Les prompts mémoire font au plus ~1250 tokens (mesuré le 2026-11-20) : 2048
+# suffit et économise ~290 Mo de VRAM face à 4096. En dessous de ~1500,
+# Ollama tronquerait silencieusement le début du prompt.
+CONTEXTE_MEMOIRE = 2048
+
 # bge-m3 est multilingue : sur 100 souvenirs français de test, le bon
 # souvenir sort dans le top 5 à 100 % contre 65 % pour nomic-embed-text.
 # Changer de modèle suffit : les souvenirs sont réindexés au démarrage.
@@ -671,7 +676,8 @@ def analyser_message_pour_memoire(message, contexte=None):
         ],
         format=schema,
         options={
-            "temperature": 0
+            "temperature": 0,
+            "num_ctx": CONTEXTE_MEMOIRE
         },
         think=False,
         keep_alive = 0,
@@ -712,7 +718,8 @@ def analyser_message_pour_memoire(message, contexte=None):
         ],
         format=schema,
         options={
-            "temperature": 0
+            "temperature": 0,
+            "num_ctx": CONTEXTE_MEMOIRE
         },
         think=False,
         keep_alive=0,
@@ -1030,7 +1037,8 @@ def analyser_relation_souvenir(nouveau_souvenir, candidats):
         ],
         format=schema,
         options={
-            "temperature": 0
+            "temperature": 0,
+            "num_ctx": CONTEXTE_MEMOIRE
         },
         think=False,
         keep_alive=0,
@@ -1081,7 +1089,8 @@ def analyser_relation_souvenir(nouveau_souvenir, candidats):
         ],
         format=schema,
         options={
-            "temperature": 0
+            "temperature": 0,
+            "num_ctx": CONTEXTE_MEMOIRE
         },
         think=False,
         keep_alive=0,
