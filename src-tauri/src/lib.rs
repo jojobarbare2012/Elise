@@ -17,6 +17,16 @@ use std::sync::{
 #[cfg(desktop)]
 struct LauncherProcess(Mutex<Option<CommandChild>>);
 
+/// Racine du projet (dossier parent de src-tauri), calculée à la compilation :
+/// le projet peut être déplacé, il suffit de recompiler.
+#[cfg(desktop)]
+fn racine_projet() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("src-tauri n'a pas de dossier parent")
+        .to_path_buf()
+}
+
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,11 +50,11 @@ pub fn run() {
 
                 let (mut rx, child) = shell
                     .command(
-                        r"C:\Users\Jonathan\Desktop\EliseV0\.venv_tts\Scripts\python.exe"
+                        racine_projet().join(".venv_tts").join("Scripts").join("python.exe")
                     )
                     .args([
-                        "-u",
-                        r"C:\Users\Jonathan\Desktop\EliseV0\launcher.py"
+                        "-u".to_string(),
+                        racine_projet().join("launcher.py").to_string_lossy().into_owned()
                     ])
                     .spawn()
                     .expect("Impossible de lancer launcher.py");
@@ -78,7 +88,7 @@ pub fn run() {
                                 println!("Demande d'arrêt du launcher Python...");
 
                                 match std::fs::write(
-                                    r"C:\Users\Jonathan\Desktop\EliseV0\data\shutdown.flag",
+                                    racine_projet().join("data").join("shutdown.flag"),
                                     "STOP"
                                 ) {
                                     Ok(_) => {
