@@ -43,6 +43,12 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
               onChange={(e) => majReglages({ dureePause: Math.max(1, Number(e.target.value) || 5) })} />
           </label>
         </div>
+        <div className="etiquette">Couleur du système</div>
+        <div className="ligne">
+          {(['cyan', 'ambre', 'vert', 'magenta'] as const).map((a) => (
+            <button key={a} data-accent={a} className={'pastille' + (reglages.accent === a ? ' actif' : '')} title={a} onClick={() => majReglages({ accent: a })} />
+          ))}
+        </div>
         <h3>Sauvegarde</h3>
         <p className="aide">Les données sont stockées dans ce navigateur. Exporte-les régulièrement.</p>
         <div className="ligne">

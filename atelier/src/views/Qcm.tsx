@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import { coursDe } from '../lib/texte'
 import { ErreurLLM, genererQcm } from '../lib/llm'
+import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 import type { Qcm as TypeQcm } from '../lib/types'
 
@@ -72,7 +73,7 @@ export function Qcm() {
               <option value="facile">Facile</option><option value="moyen">Moyen</option><option value="difficile">Difficile</option>
             </select>
           </label>
-          <button className="bouton principal" disabled={occupe} onClick={generer}>{occupe ? 'Génération…' : '✨ Générer'}</button>
+          <button className="bouton principal" disabled={occupe} onClick={generer}>{occupe ? 'Génération…' : <><Icone nom="etincelle" taille={15} /> Générer</>}</button>
         </div>
         {erreur && <p className="erreur">{erreur}</p>}
       </div>
@@ -94,7 +95,7 @@ export function Qcm() {
               </div>
               <div className="ligne">
                 <button className="bouton principal" onClick={() => setEnCours({ qcmId: q.id })}>Passer</button>
-                <button className="icone-btn" onClick={() => confirm('Supprimer ce QCM ?') && supprimerQcm(q.id)}>🗑</button>
+                <button className="icone-btn" onClick={() => confirm('Supprimer ce QCM ?') && supprimerQcm(q.id)}><Icone nom="corbeille" taille={15} /></button>
               </div>
             </div>
           )
@@ -141,7 +142,7 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
                 {erreurs.map((k) => (
                   <div key={k} className="revue-q">
                     <strong>{qcm.questions[k].enonce}</strong>
-                    <div className="bonne">✔ {qcm.questions[k].choix[qcm.questions[k].bonne]}</div>
+                    <div className="bonne">Réponse : {qcm.questions[k].choix[qcm.questions[k].bonne]}</div>
                     {qcm.questions[k].explication && <div className="aide">{qcm.questions[k].explication}</div>}
                   </div>
                 ))}

@@ -8,7 +8,7 @@ export function SelecteurPage({
   const lignes: { id: string; libelle: string }[] = []
   const ajouter = (parentId: string | null, niveau: number) => {
     for (const p of pages.filter((x) => x.parentId === parentId)) {
-      lignes.push({ id: p.id, libelle: `${'— '.repeat(niveau)}${p.icone} ${p.titre || 'Sans titre'}` })
+      lignes.push({ id: p.id, libelle: `${'— '.repeat(niveau)}${p.titre || 'Sans titre'}` })
       ajouter(p.id, niveau + 1)
     }
   }

@@ -4,6 +4,7 @@ import { useMinuteur, formaterDuree } from './lib/minuteur'
 import { Sidebar } from './components/Sidebar'
 import { PageEditeur } from './components/PageEditeur'
 import { Recherche } from './components/Recherche'
+import { Icone } from './components/Icone'
 import { Reglages } from './components/Reglages'
 import { Accueil } from './views/Accueil'
 import { Cartes } from './views/Cartes'
@@ -18,6 +19,8 @@ export default function App() {
   const [recherche, setRecherche] = useState(false)
   const [reglages, setReglages] = useState(false)
   const { actif, finLe, maintenant, phase, tic } = useMinuteur()
+  const accent = useStore((s) => s.reglages.accent)
+  useEffect(() => { document.documentElement.dataset.accent = accent }, [accent])
 
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {
@@ -41,7 +44,7 @@ export default function App() {
       <main className="principal">
         {actif && finLe && (
           <button className="bandeau-minuteur" onClick={() => aller({ type: 'planning' })}>
-            {phase === 'travail' ? '🎯' : '☕'} {formaterDuree(finLe - maintenant)}
+            <Icone nom="cible" taille={14} /> {phase === 'travail' ? 'Travail' : 'Pause'} {formaterDuree(finLe - maintenant)}
           </button>
         )}
         {vue.type === 'accueil' && <Accueil />}

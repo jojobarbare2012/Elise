@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { JSONContent } from '@tiptap/react'
 import type {
-  Carte, Examen, Page, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
+  Accent, Carte, Examen, ModuleDispo, Page, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
 } from './types'
 import { nouvelleCarte, reviser, type Note } from './sm2'
 import { descendantes } from './texte'
+import { iconeValide } from '../components/Icone'
 
 const id = () => crypto.randomUUID()
 
@@ -17,6 +18,7 @@ interface Etat {
   examens: Examen[]
   sessions: SessionTravail[]
   reglages: Reglages
+  disposition: ModuleDispo[]
   vue: Vue
 
   aller: (vue: Vue) => void
@@ -43,12 +45,24 @@ interface Etat {
 
   enregistrerSession: (minutes: number, pageId: string | null) => void
   majReglages: (r: Partial<Reglages>) => void
+  majDisposition: (d: ModuleDispo[]) => void
 
   exporter: () => string
   importer: (json: string) => void
 }
 
-const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5 }
+export const DISPOSITION_DEFAUT: ModuleDispo[] = [
+  { id: 'horloge', visible: true, taille: 1 },
+  { id: 'cartes', visible: true, taille: 1 },
+  { id: 'taches', visible: true, taille: 1 },
+  { id: 'minuteur', visible: true, taille: 1 },
+  { id: 'examens', visible: true, taille: 2 },
+  { id: 'qcm', visible: true, taille: 1 },
+  { id: 'recentes', visible: true, taille: 2 },
+  { id: 'semaine', visible: true, taille: 1 },
+]
+
+const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5, accent: 'cyan' as Accent }
 
 function pageAccueil(): Page {
   const maintenant = Date.now()
@@ -56,7 +70,7 @@ function pageAccueil(): Page {
     id: id(),
     parentId: null,
     titre: 'Bienvenue',
-    icone: '👋',
+    icone: 'cible',
     creeLe: maintenant,
     modifieLe: maintenant,
     contenu: {
@@ -88,6 +102,7 @@ export const useStore = create<Etat>()(
       examens: [],
       sessions: [],
       reglages: REGLAGES_DEFAUT,
+      disposition: DISPOSITION_DEFAUT,
       vue: { type: 'accueil' },
 
       aller: (vue) => set({ vue }),
@@ -98,7 +113,7 @@ export const useStore = create<Etat>()(
         set((s) => ({
           pages: [
             ...s.pages,
-            { id: nouveau, parentId, titre, icone: '📄', contenu: null, creeLe: maintenant, modifieLe: maintenant },
+            { id: nouveau, parentId, titre, icone: 'page', contenu: null, creeLe: maintenant, modifieLe: maintenant },
           ],
           vue: { type: 'page', pageId: nouveau },
         }))
@@ -166,28 +181,38 @@ export const useStore = create<Etat>()(
 
       enregistrerSession: (minutes, pageId) =>
         set((s) => ({ sessions: [...s.sessions, { id: id(), date: Date.now(), minutes, pageId }] })),
+      majDisposition: (d) => set({ disposition: d }),
       majReglages: (r) => set((s) => ({ reglages: { ...s.reglages, ...r } })),
 
       exporter: () => {
-        const { pages, cartes, qcms, taches, examens, sessions, reglages } = get()
-        return JSON.stringify({ version: 1, pages, cartes, qcms, taches, examens, sessions, reglages }, null, 2)
+        const { pages, cartes, qcms, taches, examens, sessions, reglages, disposition } = get()
+        return JSON.stringify({ version: 2, pages, cartes, qcms, taches, examens, sessions, reglages, disposition }, null, 2)
       },
       importer: (json) => {
         const d = JSON.parse(json)
         if (!Array.isArray(d.pages)) throw new Error('Fichier de sauvegarde invalide.')
         set({
-          pages: d.pages,
           cartes: d.cartes ?? [],
           qcms: d.qcms ?? [],
           taches: d.taches ?? [],
           examens: d.examens ?? [],
           sessions: d.sessions ?? [],
           reglages: { ...REGLAGES_DEFAUT, ...(d.reglages ?? {}) },
+          pages: d.pages.map((p: Page) => ({ ...p, icone: iconeValide(p.icone) })),
+          disposition: d.disposition ?? DISPOSITION_DEFAUT,
           vue: { type: 'accueil' },
         })
       },
     }),
-    { name: 'atelier-donnees', version: 1 },
+    {
+      name: 'atelier-donnees',
+      version: 2,
+      // v1 -> v2 : les icônes de pages passent d'emojis à des noms d'icônes SVG.
+      migrate: (ancien) => {
+        const e = ancien as { pages?: Page[] }
+        return { ...e, pages: (e.pages ?? []).map((p) => ({ ...p, icone: iconeValide(p.icone) })) } as never
+      },
+    },
   ),
 )
 

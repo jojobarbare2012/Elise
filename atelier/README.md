@@ -16,7 +16,9 @@ npm test                                   # SM-2, extraction de texte, validati
   historique des scores, erreurs ajoutables aux cartes.
 - **Tâches** : kanban (glisser-déposer), priorités, échéances, matière liée.
 - **Planning** : minuteur pomodoro, historique 7 jours, examens avec compte à rebours.
-- **Ctrl+K** : recherche globale. **Réglages** : modèle Ollama, durées, export/import JSON.
+- **Ctrl+K** : recherche globale. **Réglages** : modèle Ollama, durées, couleur du système, export/import JSON.
+- **Tableau de bord modulaire** : modules déplaçables (glisser), masquables, largeur 1 à 3 colonnes ("Configurer les modules").
+- **DA** : HUD holographique, aucune emoji (icônes SVG en traits, `src/components/Icone.tsx`), brique `Module` réutilisable.
 
 ## Données et IA
 - Données dans le `localStorage` du navigateur : **exporter régulièrement** (Réglages).

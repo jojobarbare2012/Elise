@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore, aujourdhui } from '../lib/store'
+import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 import type { Priorite, Statut, Tache } from '../lib/types'
 
@@ -18,12 +19,12 @@ function Carte({ t }: { t: Tache }) {
       onDragStart={(e) => e.dataTransfer.setData('text/plain', t.id)}>
       <div className="tache-titre">{t.titre}</div>
       <div className="tache-meta">
-        {t.echeance && <span className={enRetard ? 'retard' : ''}>📅 {new Date(t.echeance + 'T00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
-        {page && <button className="lien" onClick={() => aller({ type: 'page', pageId: page.id })}>{page.icone} {page.titre}</button>}
+        {t.echeance && <span className={enRetard ? 'retard' : ''}><Icone nom="calendrier" taille={13} /> {new Date(t.echeance + 'T00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>}
+        {page && <button className="lien" onClick={() => aller({ type: 'page', pageId: page.id })}><Icone nom={page.icone} taille={13} /> {page.titre}</button>}
         <select value={t.priorite} onChange={(e) => majTache(t.id, { priorite: e.target.value as Priorite })}>
           <option value="basse">Basse</option><option value="normale">Normale</option><option value="haute">Haute</option>
         </select>
-        <button className="icone-btn" onClick={() => supprimerTache(t.id)}>🗑</button>
+        <button className="icone-btn" onClick={() => supprimerTache(t.id)}><Icone nom="corbeille" taille={15} /></button>
       </div>
     </div>
   )

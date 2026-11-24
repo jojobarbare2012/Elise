@@ -13,8 +13,8 @@ import { useStore } from '../lib/store'
 import { liensDe } from '../lib/texte'
 import { CommandeSlash, mentionPages } from './extensions'
 import type { Page } from '../lib/types'
+import { Icone, ICONES_PAGE } from './Icone'
 
-const ICONES = ['📄', '📘', '🧪', '📐', '💻', '🧠', '📊', '🌍', '⚖️', '🎯', '✏️', '📚']
 
 export function PageEditeur({ page }: { page: Page }) {
   const majContenu = useStore((s) => s.majContenu)
@@ -81,9 +81,9 @@ export function PageEditeur({ page }: { page: Page }) {
         <button
           className="page-icone"
           title="Changer l'icône"
-          onClick={() => majPage(page.id, { icone: ICONES[(ICONES.indexOf(page.icone) + 1) % ICONES.length] })}
+          onClick={() => majPage(page.id, { icone: ICONES_PAGE[(ICONES_PAGE.indexOf(page.icone) + 1) % ICONES_PAGE.length] })}
         >
-          {page.icone}
+          <Icone nom={page.icone} taille={34} />
         </button>
         <input
           className="page-titre"
@@ -100,7 +100,7 @@ export function PageEditeur({ page }: { page: Page }) {
           <h4>Mentionnée dans</h4>
           {retroliens.map((p) => (
             <button key={p.id} className="lien" onClick={() => aller({ type: 'page', pageId: p.id })}>
-              {p.icone} {p.titre || 'Sans titre'}
+              <Icone nom={p.icone} taille={14} /> {p.titre || 'Sans titre'}
             </button>
           ))}
         </footer>

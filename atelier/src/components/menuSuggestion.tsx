@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { ReactRenderer } from '@tiptap/react'
+import { Icone } from './Icone'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 
 export interface ElementMenu {
@@ -40,7 +41,7 @@ const ListeMenu = forwardRef<RefMenu, Props>(({ items, command }, ref) => {
           onMouseEnter={() => setActif(i)}
           onMouseDown={(e) => { e.preventDefault(); command(item) }}
         >
-          <span className="menu-icone">{item.icone}</span>
+          <span className="menu-icone">{item.icone && <Icone nom={item.icone} taille={15} />}</span>
           <span>
             <span className="menu-titre">{item.titre}</span>
             {item.detail && <span className="menu-detail">{item.detail}</span>}

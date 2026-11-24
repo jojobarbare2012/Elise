@@ -76,6 +76,7 @@ export interface Reglages {
   modele: string
   dureeTravail: number
   dureePause: number
+  accent: Accent
 }
 
 export type Vue =
@@ -85,3 +86,11 @@ export type Vue =
   | { type: 'qcm' }
   | { type: 'taches' }
   | { type: 'planning' }
+
+/** Un module du tableau de bord : place, largeur (1 à 3 colonnes) et visibilité. */
+export interface ModuleDispo {
+  id: string
+  visible: boolean
+  taille: 1 | 2 | 3
+}
+export type Accent = 'cyan' | 'ambre' | 'vert' | 'magenta'

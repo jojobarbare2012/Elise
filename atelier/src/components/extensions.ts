@@ -11,17 +11,17 @@ interface CommandeBloc extends ElementMenu {
 }
 
 const COMMANDES: CommandeBloc[] = [
-  { icone: 'H1', titre: 'Titre 1', mots: 'titre h1', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 1 }).run() },
-  { icone: 'H2', titre: 'Titre 2', mots: 'titre h2', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 2 }).run() },
-  { icone: 'H3', titre: 'Titre 3', mots: 'titre h3', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 3 }).run() },
-  { icone: '•', titre: 'Liste à puces', mots: 'liste puces', executer: (e, r) => e.chain().focus().deleteRange(r).toggleBulletList().run() },
-  { icone: '1.', titre: 'Liste numérotée', mots: 'liste numerotee', executer: (e, r) => e.chain().focus().deleteRange(r).toggleOrderedList().run() },
-  { icone: '☑', titre: 'Liste de tâches', mots: 'taches todo cases', executer: (e, r) => e.chain().focus().deleteRange(r).toggleTaskList().run() },
-  { icone: '❝', titre: 'Citation', mots: 'citation quote', executer: (e, r) => e.chain().focus().deleteRange(r).toggleBlockquote().run() },
-  { icone: '</>', titre: 'Bloc de code', mots: 'code', executer: (e, r) => e.chain().focus().deleteRange(r).toggleCodeBlock().run() },
-  { icone: '▦', titre: 'Tableau', mots: 'tableau table', executer: (e, r) => e.chain().focus().deleteRange(r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-  { icone: '—', titre: 'Séparateur', mots: 'separateur ligne', executer: (e, r) => e.chain().focus().deleteRange(r).setHorizontalRule().run() },
-  { icone: '?', titre: 'Carte à retenir', detail: 'Ligne « Question :: Réponse »', mots: 'carte flashcard question', executer: (e, r) => e.chain().focus().deleteRange(r).insertContent('Question :: Réponse').run() },
+  { icone: 'titre', detail: 'Grand titre', titre: 'Titre 1', mots: 'titre h1', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 1 }).run() },
+  { icone: 'titre', titre: 'Titre 2', mots: 'titre h2', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 2 }).run() },
+  { icone: 'titre', titre: 'Titre 3', mots: 'titre h3', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 3 }).run() },
+  { icone: 'liste', titre: 'Liste à puces', mots: 'liste puces', executer: (e, r) => e.chain().focus().deleteRange(r).toggleBulletList().run() },
+  { icone: 'liste', titre: 'Liste numérotée', mots: 'liste numerotee', executer: (e, r) => e.chain().focus().deleteRange(r).toggleOrderedList().run() },
+  { icone: 'valide', titre: 'Liste de tâches', mots: 'taches todo cases', executer: (e, r) => e.chain().focus().deleteRange(r).toggleTaskList().run() },
+  { icone: 'citation', titre: 'Citation', mots: 'citation quote', executer: (e, r) => e.chain().focus().deleteRange(r).toggleBlockquote().run() },
+  { icone: 'code', titre: 'Bloc de code', mots: 'code', executer: (e, r) => e.chain().focus().deleteRange(r).toggleCodeBlock().run() },
+  { icone: 'tableau', titre: 'Tableau', mots: 'tableau table', executer: (e, r) => e.chain().focus().deleteRange(r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  { icone: 'separateur', titre: 'Séparateur', mots: 'separateur ligne', executer: (e, r) => e.chain().focus().deleteRange(r).setHorizontalRule().run() },
+  { icone: 'question', titre: 'Carte à retenir', detail: 'Ligne « Question :: Réponse »', mots: 'carte flashcard question', executer: (e, r) => e.chain().focus().deleteRange(r).insertContent('Question :: Réponse').run() },
 ]
 
 const retirerAccents = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
@@ -54,7 +54,7 @@ export function mentionPages(lirePages: () => Page[]) {
     renderHTML: ({ node, options }) => [
       'span',
       { ...options.HTMLAttributes, 'data-type': 'mention', 'data-id': node.attrs.id },
-      `📄 ${node.attrs.label}`,
+      node.attrs.label,
     ],
     suggestion: {
       char: '@',

@@ -3,6 +3,7 @@ import { useStore } from '../lib/store'
 import { estDue, libelleIntervalle, type Note } from '../lib/sm2'
 import { cartesEcrites, coursDe, descendantes, texteDe } from '../lib/texte'
 import { genererCartes } from '../lib/llm'
+import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 
 const NOTES: { note: Note; titre: string }[] = [
@@ -87,7 +88,7 @@ export function Cartes() {
           </div>
         ) : (
           <div className="vide-grand">
-            <p>🎉 Plus aucune carte à réviser{filtre ? ' dans cette matière' : ''}.</p>
+            <p>Plus aucune carte à réviser{filtre ? ' dans cette matière' : ''}.</p>
             {portee.length === 0 && <p className="aide">Crée des cartes dans l’onglet « Gérer ».</p>}
           </div>
         )
@@ -103,7 +104,7 @@ export function Cartes() {
           </div>
           <div className="ligne">
             <button className="bouton" onClick={importerDepuis}>Importer les « Question :: Réponse »</button>
-            <button className="bouton" disabled={occupe} onClick={generer}>✨ Générer avec l’IA</button>
+            <button className="bouton" disabled={occupe} onClick={generer}><Icone nom="etincelle" taille={15} /> Générer avec l’IA</button>
             {info && <span className="aide">{info}</span>}
           </div>
           <table className="table">
@@ -113,7 +114,7 @@ export function Cartes() {
                 <tr key={c.id}>
                   <td>{c.recto}</td><td>{c.verso}</td>
                   <td>{estDue(c) ? 'maintenant' : new Date(c.echeance).toLocaleDateString('fr-FR')}</td>
-                  <td><button className="icone-btn" onClick={() => supprimerCarte(c.id)}>🗑</button></td>
+                  <td><button className="icone-btn" onClick={() => supprimerCarte(c.id)}><Icone nom="corbeille" taille={15} /></button></td>
                 </tr>
               ))}
             </tbody>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { extrait, texteDe } from '../lib/texte'
+import { Icone } from './Icone'
 
 interface Resultat {
   cle: string
@@ -39,11 +40,11 @@ export function Recherche({ onFermer }: { onFermer: () => void }) {
       }
     }
     cartes.filter((c) => (c.recto + c.verso).toLowerCase().includes(minuscule)).slice(0, 5)
-      .forEach((c) => sortie.push({ cle: c.id, icone: '🃏', titre: c.recto, detail: c.verso, ouvrir: () => aller({ type: 'cartes' }) }))
+      .forEach((c) => sortie.push({ cle: c.id, icone: 'cartes', titre: c.recto, detail: c.verso, ouvrir: () => aller({ type: 'cartes' }) }))
     taches.filter((t) => t.titre.toLowerCase().includes(minuscule)).slice(0, 5)
-      .forEach((t) => sortie.push({ cle: t.id, icone: '🗂', titre: t.titre, detail: 'Tâche', ouvrir: () => aller({ type: 'taches' }) }))
+      .forEach((t) => sortie.push({ cle: t.id, icone: 'taches', titre: t.titre, detail: 'Tâche', ouvrir: () => aller({ type: 'taches' }) }))
     qcms.filter((x) => x.titre.toLowerCase().includes(minuscule)).slice(0, 3)
-      .forEach((x) => sortie.push({ cle: x.id, icone: '✅', titre: x.titre, detail: 'QCM', ouvrir: () => aller({ type: 'qcm' }) }))
+      .forEach((x) => sortie.push({ cle: x.id, icone: 'qcm', titre: x.titre, detail: 'QCM', ouvrir: () => aller({ type: 'qcm' }) }))
     return sortie.slice(0, 12)
   }, [q, pages, cartes, taches, qcms, aller])
 
@@ -67,7 +68,7 @@ export function Recherche({ onFermer }: { onFermer: () => void }) {
         <div className="palette-liste">
           {resultats.map((r, i) => (
             <button key={r.cle} className={'menu-item' + (i === actif ? ' actif' : '')} onMouseEnter={() => setActif(i)} onClick={() => choisir(r)}>
-              <span className="menu-icone">{r.icone}</span>
+              <span className="menu-icone"><Icone nom={r.icone} taille={15} /></span>
               <span><span className="menu-titre">{r.titre}</span><span className="menu-detail">{r.detail}</span></span>
             </button>
           ))}
