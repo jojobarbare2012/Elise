@@ -43,6 +43,10 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
               onChange={(e) => majReglages({ dureePause: Math.max(1, Number(e.target.value) || 5) })} />
           </label>
         </div>
+        <label className="case">
+          <input type="checkbox" checked={reglages.demarrage !== false} onChange={(e) => majReglages({ demarrage: e.target.checked })} />
+          Écran de démarrage animé
+        </label>
         <div className="etiquette">Couleur du système</div>
         <div className="ligne">
           {(['cyan', 'ambre', 'vert', 'magenta'] as const).map((a) => (

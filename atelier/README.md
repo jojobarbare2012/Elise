@@ -24,3 +24,13 @@ npm test                                   # SM-2, extraction de texte, validati
 - Données dans le `localStorage` du navigateur : **exporter régulièrement** (Réglages).
 - IA : Ollama local via le proxy Vite `/ollama` → `:11434`. Modèle réglable (défaut `qwen3:14b`,
   celui d'Élise). Seul `src/lib/llm.ts` connaît Ollama.
+
+## Espace de travail et effets
+- **Espace de travail** : jusqu'à 4 modules côte à côte (page, cartes, QCM, tâches, minuteur, planning, tableau de bord),
+  redimensionnables au séparateur, déplaçables, fermables ; préréglages « Révision », « Planification », « Cours + QCM ».
+  Le bouton « Espace » d'une page l'ouvre directement dans l'espace.
+- **Grilles de modules** (`GrilleModules`) : l'accueil et le planning se réorganisent ; disposition mémorisée par vue.
+- **Démarrage** : écran d'initialisation qui affiche l'état réel (mémoire locale, révisions dues, joignabilité d'Ollama) ;
+  désactivable dans les Réglages, ignoré si le système demande moins d'animations.
+- **Minuteur** : anneau de progression façon réacteur ; le décompte actif s'affiche dans la barre latérale.
+- **Transitions** : balayage lumineux et apparition en fondu à chaque changement de vue, modules en cascade.

@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useStore } from './lib/store'
-import { useMinuteur, formaterDuree } from './lib/minuteur'
+import { useMinuteur } from './lib/minuteur'
 import { Sidebar } from './components/Sidebar'
 import { PageEditeur } from './components/PageEditeur'
 import { Recherche } from './components/Recherche'
-import { Icone } from './components/Icone'
 import { Reglages } from './components/Reglages'
 import { Accueil } from './views/Accueil'
 import { Cartes } from './views/Cartes'
 import { Qcm } from './views/Qcm'
 import { Taches } from './views/Taches'
 import { Planning } from './views/Planning'
+import { Espace } from './views/Espace'
+import { Demarrage } from './components/Demarrage'
 
 export default function App() {
   const vue = useStore((s) => s.vue)
@@ -18,7 +19,10 @@ export default function App() {
   const page = useStore((s) => (s.vue.type === 'page' ? s.pages.find((p) => p.id === (s.vue as { pageId: string }).pageId) : undefined))
   const [recherche, setRecherche] = useState(false)
   const [reglages, setReglages] = useState(false)
-  const { actif, finLe, maintenant, phase, tic } = useMinuteur()
+  const demarrageActif = useStore((s) => s.reglages.demarrage !== false)
+  const [boot, setBoot] = useState(() => demarrageActif)
+  const finBoot = useCallback(() => setBoot(false), [])
+  const tic = useMinuteur((m) => m.tic)
   const accent = useStore((s) => s.reglages.accent)
   useEffect(() => { document.documentElement.dataset.accent = accent }, [accent])
 
@@ -42,18 +46,18 @@ export default function App() {
     <div className="appli">
       <Sidebar onRecherche={() => setRecherche(true)} onReglages={() => setReglages(true)} />
       <main className="principal">
-        {actif && finLe && (
-          <button className="bandeau-minuteur" onClick={() => aller({ type: 'planning' })}>
-            <Icone nom="cible" taille={14} /> {phase === 'travail' ? 'Travail' : 'Pause'} {formaterDuree(finLe - maintenant)}
-          </button>
-        )}
-        {vue.type === 'accueil' && <Accueil />}
-        {vue.type === 'page' && page && <PageEditeur key={page.id} page={page} />}
-        {vue.type === 'cartes' && <Cartes />}
-        {vue.type === 'qcm' && <Qcm />}
-        {vue.type === 'taches' && <Taches />}
-        {vue.type === 'planning' && <Planning />}
+        <div key={'f-' + (vue.type === 'page' ? vue.pageId : vue.type)} className="faisceau" />
+        <div key={vue.type === 'page' ? 'page-' + vue.pageId : vue.type} className={'vue-anim' + (vue.type === 'espace' ? ' plein' : '')}>
+          {vue.type === 'accueil' && <Accueil />}
+          {vue.type === 'page' && page && <PageEditeur key={page.id} page={page} />}
+          {vue.type === 'cartes' && <Cartes />}
+          {vue.type === 'qcm' && <Qcm />}
+          {vue.type === 'taches' && <Taches />}
+          {vue.type === 'planning' && <Planning />}
+          {vue.type === 'espace' && <Espace />}
+        </div>
       </main>
+      {boot && <Demarrage onFin={finBoot} />}
       {recherche && <Recherche onFermer={() => setRecherche(false)} />}
       {reglages && <Reglages onFermer={() => setReglages(false)} />}
     </div>

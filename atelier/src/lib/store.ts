@@ -2,11 +2,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { JSONContent } from '@tiptap/react'
 import type {
-  Accent, Carte, Examen, ModuleDispo, Page, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
+  Accent, Carte, Examen, ModuleDispo, Page, Pane, TypePane, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
 } from './types'
 import { nouvelleCarte, reviser, type Note } from './sm2'
 import { descendantes } from './texte'
 import { iconeValide } from '../components/Icone'
+import { avecNouveau, deplacer, sans } from './espace'
 
 const id = () => crypto.randomUUID()
 
@@ -18,7 +19,8 @@ interface Etat {
   examens: Examen[]
   sessions: SessionTravail[]
   reglages: Reglages
-  disposition: ModuleDispo[]
+  dispositions: Record<string, ModuleDispo[]>
+  espace: Pane[]
   vue: Vue
 
   aller: (vue: Vue) => void
@@ -45,7 +47,14 @@ interface Etat {
 
   enregistrerSession: (minutes: number, pageId: string | null) => void
   majReglages: (r: Partial<Reglages>) => void
-  majDisposition: (d: ModuleDispo[]) => void
+  majDisposition: (cle: string, d: ModuleDispo[]) => void
+
+  ajouterPane: (type: TypePane, pageId?: string | null) => void
+  retirerPane: (paneId: string) => void
+  majPane: (paneId: string, champs: Partial<Pick<Pane, 'type' | 'pageId' | 'poids'>>) => void
+  deplacerPane: (paneId: string, dir: -1 | 1) => void
+  definirEspace: (panes: Pane[]) => void
+  ouvrirDansEspace: (pageId: string) => void
 
   exporter: () => string
   importer: (json: string) => void
@@ -62,7 +71,7 @@ export const DISPOSITION_DEFAUT: ModuleDispo[] = [
   { id: 'semaine', visible: true, taille: 1 },
 ]
 
-const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5, accent: 'cyan' as Accent }
+const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5, accent: 'cyan' as Accent, demarrage: true }
 
 function pageAccueil(): Page {
   const maintenant = Date.now()
@@ -102,7 +111,8 @@ export const useStore = create<Etat>()(
       examens: [],
       sessions: [],
       reglages: REGLAGES_DEFAUT,
-      disposition: DISPOSITION_DEFAUT,
+      dispositions: { accueil: DISPOSITION_DEFAUT },
+      espace: [],
       vue: { type: 'accueil' },
 
       aller: (vue) => set({ vue }),
@@ -181,12 +191,30 @@ export const useStore = create<Etat>()(
 
       enregistrerSession: (minutes, pageId) =>
         set((s) => ({ sessions: [...s.sessions, { id: id(), date: Date.now(), minutes, pageId }] })),
-      majDisposition: (d) => set({ disposition: d }),
+      majDisposition: (cle, d) => set((s) => ({ dispositions: { ...s.dispositions, [cle]: d } })),
+
+      ajouterPane: (type, pageId = null) =>
+        set((s) => ({ espace: avecNouveau(s.espace, { id: id(), type, pageId }) })),
+      retirerPane: (paneId) => set((s) => ({ espace: sans(s.espace, paneId) })),
+      majPane: (paneId, champs) =>
+        set((s) => ({ espace: s.espace.map((p) => (p.id === paneId ? { ...p, ...champs } : p)) })),
+      deplacerPane: (paneId, dir) => set((s) => ({ espace: deplacer(s.espace, paneId, dir) })),
+      definirEspace: (panes) => set({ espace: panes }),
+      ouvrirDansEspace: (pageId) =>
+        set((s) => {
+          const existant = s.espace.find((p) => p.type === 'page' && p.pageId === pageId)
+          if (existant) return { vue: { type: 'espace' } }
+          const libre = s.espace.find((p) => p.type === 'page' && !p.pageId)
+          if (libre) {
+            return { vue: { type: 'espace' }, espace: s.espace.map((p) => (p.id === libre.id ? { ...p, pageId } : p)) }
+          }
+          return { vue: { type: 'espace' }, espace: avecNouveau(s.espace, { id: id(), type: 'page', pageId }) }
+        }),
       majReglages: (r) => set((s) => ({ reglages: { ...s.reglages, ...r } })),
 
       exporter: () => {
-        const { pages, cartes, qcms, taches, examens, sessions, reglages, disposition } = get()
-        return JSON.stringify({ version: 2, pages, cartes, qcms, taches, examens, sessions, reglages, disposition }, null, 2)
+        const { pages, cartes, qcms, taches, examens, sessions, reglages, dispositions, espace } = get()
+        return JSON.stringify({ version: 3, pages, cartes, qcms, taches, examens, sessions, reglages, dispositions, espace }, null, 2)
       },
       importer: (json) => {
         const d = JSON.parse(json)
@@ -199,18 +227,26 @@ export const useStore = create<Etat>()(
           sessions: d.sessions ?? [],
           reglages: { ...REGLAGES_DEFAUT, ...(d.reglages ?? {}) },
           pages: d.pages.map((p: Page) => ({ ...p, icone: iconeValide(p.icone) })),
-          disposition: d.disposition ?? DISPOSITION_DEFAUT,
+          dispositions: d.dispositions ?? { accueil: d.disposition ?? DISPOSITION_DEFAUT },
+          espace: d.espace ?? [],
           vue: { type: 'accueil' },
         })
       },
     }),
     {
       name: 'atelier-donnees',
-      version: 2,
+      version: 3,
       // v1 -> v2 : les icônes de pages passent d'emojis à des noms d'icônes SVG.
       migrate: (ancien) => {
-        const e = ancien as { pages?: Page[] }
-        return { ...e, pages: (e.pages ?? []).map((p) => ({ ...p, icone: iconeValide(p.icone) })) } as never
+        // v1 -> v2 : icônes ; v2 -> v3 : `disposition` (accueil seul) devient `dispositions` par vue.
+        const e = ancien as { pages?: Page[]; disposition?: ModuleDispo[]; dispositions?: Record<string, ModuleDispo[]> }
+        const { disposition, ...reste } = e
+        return {
+          ...reste,
+          pages: (e.pages ?? []).map((p) => ({ ...p, icone: iconeValide(p.icone) })),
+          dispositions: e.dispositions ?? { accueil: disposition ?? DISPOSITION_DEFAUT },
+          reglages: { ...REGLAGES_DEFAUT, ...((e as { reglages?: object }).reglages ?? {}) },
+        } as never
       },
     },
   ),

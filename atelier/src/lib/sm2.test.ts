@@ -69,3 +69,42 @@ describe('validation des QCM du LLM', () => {
     expect(validerQuestions(null)).toEqual([])
   })
 })
+
+import { avecNouveau, deplacer, normaliser, redimensionner, sans } from './espace'
+import type { Pane } from './types'
+
+const pane = (id: string, poids: number): Pane => ({ id, type: 'cartes', pageId: null, poids })
+
+describe('espace de travail', () => {
+  it('redimensionne sans jamais passer sous le minimum', () => {
+    const p = redimensionner([0.5, 0.5], 0, 0.9)
+    expect(p[0] + p[1]).toBeCloseTo(1)
+    expect(p[1]).toBeGreaterThanOrEqual(0.14 - 1e-9)
+    const q = redimensionner([0.5, 0.5], 0, -0.9)
+    expect(q[0]).toBeCloseTo(0.14)
+  })
+  it('un séparateur ne touche que ses deux voisins', () => {
+    const p = redimensionner([0.2, 0.3, 0.5], 1, 0.1)
+    expect(p[0]).toBeCloseTo(0.2)
+    expect(p[1] + p[2]).toBeCloseTo(0.8)
+  })
+  it('séparateur invalide : rien ne change', () => {
+    expect(redimensionner([0.5, 0.5], 5, 0.1)).toEqual([0.5, 0.5])
+  })
+  it('ajouter / retirer garde une somme de 1 et respecte le maximum', () => {
+    let panes = [pane('a', 0.5), pane('b', 0.5)]
+    panes = avecNouveau(panes, { id: 'c', type: 'page', pageId: null })
+    expect(panes.reduce((s, p) => s + p.poids, 0)).toBeCloseTo(1)
+    panes = sans(panes, 'a')
+    expect(panes).toHaveLength(2)
+    expect(panes.reduce((s, p) => s + p.poids, 0)).toBeCloseTo(1)
+    const pleins = [pane('1', 0.25), pane('2', 0.25), pane('3', 0.25), pane('4', 0.25)]
+    expect(avecNouveau(pleins, { id: '5', type: 'page', pageId: null })).toHaveLength(4)
+  })
+  it('déplace un panneau avec son poids, sans sortir des bornes', () => {
+    const panes = [pane('a', 0.7), pane('b', 0.3)]
+    expect(deplacer(panes, 'a', 1).map((p) => p.id)).toEqual(['b', 'a'])
+    expect(deplacer(panes, 'a', -1)).toBe(panes)
+    expect(normaliser([0, 0]).reduce((s, p) => s + p, 0)).toBeCloseTo(1)
+  })
+})

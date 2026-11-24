@@ -20,6 +20,7 @@ export function PageEditeur({ page }: { page: Page }) {
   const majContenu = useStore((s) => s.majContenu)
   const majPage = useStore((s) => s.majPage)
   const aller = useStore((s) => s.aller)
+  const ouvrirDansEspace = useStore((s) => s.ouvrirDansEspace)
   const pages = useStore((s) => s.pages)
   const minuteur = useRef<number>()
 
@@ -91,6 +92,9 @@ export function PageEditeur({ page }: { page: Page }) {
           placeholder="Sans titre"
           onChange={(e) => majPage(page.id, { titre: e.target.value })}
         />
+        <button className="bouton" title="Ouvrir dans l'espace de travail" onClick={() => ouvrirDansEspace(page.id)}>
+          <Icone nom="modules" taille={14} /> Espace
+        </button>
       </div>
       <div onClick={clicContenu}>
         <EditorContent editor={editeur} className="zone-edition" />

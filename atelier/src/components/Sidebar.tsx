@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../lib/store'
 import type { Page, Vue } from '../lib/types'
 import { Icone } from './Icone'
+import { formaterDuree, useMinuteur } from '../lib/minuteur'
 
 function NoeudPage({ page, niveau }: { page: Page; niveau: number }) {
   const pages = useStore((s) => s.pages)
@@ -46,6 +47,7 @@ const NAV: { vue: Vue; icone: string; titre: string }[] = [
   { vue: { type: 'qcm' }, icone: 'qcm', titre: 'QCM' },
   { vue: { type: 'taches' }, icone: 'taches', titre: 'Tâches' },
   { vue: { type: 'planning' }, icone: 'planning', titre: 'Planning' },
+  { vue: { type: 'espace' }, icone: 'modules', titre: 'Espace de travail' },
 ]
 
 export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; onReglages: () => void }) {
@@ -54,6 +56,7 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
   const aller = useStore((s) => s.aller)
   const creerPage = useStore((s) => s.creerPage)
   const racines = pages.filter((p) => p.parentId === null)
+  const { actif, finLe, maintenant, phase } = useMinuteur()
 
   return (
     <aside className="sidebar">
@@ -78,6 +81,13 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
         {racines.map((p) => <NoeudPage key={p.id} page={p} niveau={0} />)}
         {!racines.length && <p className="vide">Aucune page.</p>}
       </div>
+      {actif && finLe && (
+        <button className="minuteur-mini" onClick={() => aller({ type: 'planning' })}>
+          <span className="voyant" />
+          <span className="etiquette">{phase === 'travail' ? 'Travail' : 'Pause'}</span>
+          <span className="mono">{formaterDuree(finLe - maintenant)}</span>
+        </button>
+      )}
       <button className="nav-item reglages" onClick={onReglages}><Icone nom="reglages" /> Réglages et sauvegarde</button>
     </aside>
   )

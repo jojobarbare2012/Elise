@@ -77,6 +77,7 @@ export interface Reglages {
   dureeTravail: number
   dureePause: number
   accent: Accent
+  demarrage: boolean
 }
 
 export type Vue =
@@ -86,6 +87,7 @@ export type Vue =
   | { type: 'qcm' }
   | { type: 'taches' }
   | { type: 'planning' }
+  | { type: 'espace' }
 
 /** Un module du tableau de bord : place, largeur (1 à 3 colonnes) et visibilité. */
 export interface ModuleDispo {
@@ -94,3 +96,13 @@ export interface ModuleDispo {
   taille: 1 | 2 | 3
 }
 export type Accent = 'cyan' | 'ambre' | 'vert' | 'magenta'
+
+export type TypePane = 'page' | 'cartes' | 'qcm' | 'taches' | 'minuteur' | 'planning' | 'accueil'
+
+/** Un panneau de l'espace de travail : ce qu'il affiche et sa part de largeur. */
+export interface Pane {
+  id: string
+  type: TypePane
+  pageId: string | null // utilisé par le type « page »
+  poids: number
+}
