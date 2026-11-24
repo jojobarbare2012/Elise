@@ -1,0 +1,59 @@
+import { useRef, useState } from 'react'
+import { useStore } from '../lib/store'
+
+export function Reglages({ onFermer }: { onFermer: () => void }) {
+  const { reglages, majReglages, exporter, importer } = useStore()
+  const fichier = useRef<HTMLInputElement>(null)
+  const [message, setMessage] = useState('')
+
+  const telecharger = () => {
+    const blob = new Blob([exporter()], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `atelier-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
+  const restaurer = async (f: File) => {
+    if (!confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')) return
+    try {
+      importer(await f.text())
+      setMessage('Sauvegarde restaurée.')
+    } catch (e) {
+      setMessage((e as Error).message)
+    }
+  }
+
+  return (
+    <div className="voile" onMouseDown={onFermer}>
+      <div className="dialogue" onMouseDown={(e) => e.stopPropagation()}>
+        <h2>Réglages</h2>
+        <label>
+          Modèle Ollama (QCM et cartes)
+          <input value={reglages.modele} onChange={(e) => majReglages({ modele: e.target.value })} />
+        </label>
+        <div className="ligne">
+          <label>Travail (min)
+            <input type="number" min={1} max={180} value={reglages.dureeTravail}
+              onChange={(e) => majReglages({ dureeTravail: Math.max(1, Number(e.target.value) || 25) })} />
+          </label>
+          <label>Pause (min)
+            <input type="number" min={1} max={60} value={reglages.dureePause}
+              onChange={(e) => majReglages({ dureePause: Math.max(1, Number(e.target.value) || 5) })} />
+          </label>
+        </div>
+        <h3>Sauvegarde</h3>
+        <p className="aide">Les données sont stockées dans ce navigateur. Exporte-les régulièrement.</p>
+        <div className="ligne">
+          <button className="bouton" onClick={telecharger}>Exporter (JSON)</button>
+          <button className="bouton" onClick={() => fichier.current?.click()}>Importer…</button>
+          <input ref={fichier} type="file" accept="application/json" hidden
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) restaurer(f); e.target.value = '' }} />
+        </div>
+        {message && <p className="aide">{message}</p>}
+        <div className="ligne fin"><button className="bouton principal" onClick={onFermer}>Fermer</button></div>
+      </div>
+    </div>
+  )
+}
