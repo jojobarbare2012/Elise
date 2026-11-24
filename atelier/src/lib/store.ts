@@ -72,7 +72,7 @@ export const DISPOSITION_DEFAUT: ModuleDispo[] = [
   { id: 'semaine', visible: true, taille: 1 },
 ]
 
-const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5, accent: 'cyan' as Accent, demarrage: true }
+const REGLAGES_DEFAUT: Reglages = { modele: 'qwen3:14b', dureeTravail: 25, dureePause: 5, accent: 'cyan' as Accent, demarrage: true, fournisseur: 'claude' as const, modeleClaude: 'claude-opus-5-5' }
 
 function pageAccueil(): Page {
   const maintenant = Date.now()

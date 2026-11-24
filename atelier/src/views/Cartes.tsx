@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { estDue, libelleIntervalle, type Note } from '../lib/sm2'
 import { cartesEcrites, coursDe, descendantes, texteDe } from '../lib/texte'
-import { genererCartes } from '../lib/llm'
+import { configIA, coursTronque, genererCartes } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 
@@ -43,16 +43,18 @@ export function Cartes() {
     if (!filtre) return setInfo('Choisis d’abord une page ou une matière.')
     const cours = coursDe(pages, filtre)
     if (cours.length < 40) return setInfo('Le cours est trop court pour générer des cartes.')
-    setOccupe(true); setInfo('Génération en cours…')
+    setOccupe(true); setInfo(configIA(reglages).fournisseur === 'claude' ? 'Claude lit le cours… (jusqu’à une minute)' : 'Génération en cours…')
     try {
-      const r = await genererCartes(reglages.modele, pages.find((p) => p.id === filtre)?.titre ?? '', cours)
+      const ia = configIA(reglages)
+      const r = await genererCartes(ia, pages.find((p) => p.id === filtre)?.titre ?? '', cours)
+      const tronque = coursTronque(ia, cours) ? ' (cours tronqué : trop long pour le modèle local)' : ''
       if (!r.cartes.length) {
         setInfo(r.plafond === 0
           ? 'Ce cours est trop court pour en tirer des cartes utiles.'
           : 'Aucune carte pertinente trouvée : le cours est peut-être trop général. Rien n’a été créé.')
       } else {
         const n = ajouterCartes(r.cartes, filtre)
-        setInfo(`${n} carte(s) créée(s)${r.ecartees ? `, ${r.ecartees} écartée(s) car peu pertinentes` : ''}.`)
+        setInfo(`${n} carte(s) créée(s)${r.ecartees ? `, ${r.ecartees} écartée(s) car peu pertinentes` : ''}.${tronque}`)
       }
     } catch (e) {
       setInfo((e as Error).message)

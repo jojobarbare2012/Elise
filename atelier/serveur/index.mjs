@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { creerApi } from './api.mjs'
 
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// Secrets locaux (ANTHROPIC_API_KEY…) dans atelier/.env, jamais versionné.
+try { process.loadEnvFile(path.join(racine, '.env')) } catch { /* pas de .env */ }
 const port = Number(process.env.ATELIER_PORT ?? 5175)
 const hote = process.env.ATELIER_HOTE ?? '127.0.0.1'
 const jeton = process.env.ATELIER_JETON || undefined
@@ -18,7 +20,7 @@ if (!['127.0.0.1', 'localhost', '::1'].includes(hote) && !jeton) {
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json', '.woff2': 'font/woff2', '.woff': 'font/woff', '.png': 'image/png', '.ico': 'image/x-icon' }
-const api = creerApi({ dossier, jeton, ollama })
+const api = creerApi({ dossier, jeton, ollama, anthropic: { cle: process.env.ANTHROPIC_API_KEY || undefined } })
 
 http.createServer((req, res) => {
   api(req, res, async () => {
@@ -37,5 +39,5 @@ http.createServer((req, res) => {
   })
 }).listen(port, hote, () => {
   console.log(`[ATELIER] http://${hote === '0.0.0.0' ? 'localhost' : hote}:${port}  (données : ${path.resolve(dossier)})`)
-  console.log(`[ATELIER] ${jeton ? 'jeton requis' : 'accès local uniquement'}`)
+  console.log(`[ATELIER] ${jeton ? 'jeton requis' : 'accès local uniquement'} · Claude : ${process.env.ANTHROPIC_API_KEY ? 'clé configurée' : 'pas de clé (ANTHROPIC_API_KEY)'}`)
 })

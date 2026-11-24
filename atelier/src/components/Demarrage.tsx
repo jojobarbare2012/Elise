@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useStore } from '../lib/store'
 import { estDue } from '../lib/sm2'
+import { configIA, etatClaude } from '../lib/llm'
 
 type Ia = 'attente' | 'ok' | 'ko'
 
@@ -8,8 +9,9 @@ type Ia = 'attente' | 'ok' | 'ko'
 export function Demarrage({ onFin }: { onFin: () => void }) {
   const pages = useStore((s) => s.pages.length)
   const cartes = useStore((s) => s.cartes)
+  const ia = configIA(useStore.getState().reglages)
   const [etape, setEtape] = useState(0)
-  const [ia, setIa] = useState<Ia>('attente')
+  const [iaEtat, setIa] = useState<Ia>('attente')
   const [sortie, setSortie] = useState(false)
 
   useEffect(() => {
@@ -18,6 +20,10 @@ export function Demarrage({ onFin }: { onFin: () => void }) {
 
   // Sonde réelle d'Ollama (courte), pour dire la vérité à l'écran.
   useEffect(() => {
+    if (ia.fournisseur === 'claude') {
+      void etatClaude().then((ok) => setIa(ok ? 'ok' : 'ko'))
+      return
+    }
     const ctrl = new AbortController()
     const t = window.setTimeout(() => ctrl.abort(), 1500)
     fetch('/ollama/api/tags', { signal: ctrl.signal })
@@ -25,22 +31,22 @@ export function Demarrage({ onFin }: { onFin: () => void }) {
       .catch(() => setIa('ko'))
       .finally(() => window.clearTimeout(t))
     return () => { ctrl.abort(); window.clearTimeout(t) }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lignes: { texte: string; etat: 'ok' | 'avert' | 'attente' }[] = [
     { texte: 'Noyau interface', etat: 'ok' },
     { texte: `Mémoire locale : ${pages} page(s), ${cartes.length} carte(s)`, etat: 'ok' },
     { texte: `Révisions en attente : ${cartes.filter((c) => estDue(c)).length}`, etat: 'ok' },
-    { texte: 'IA locale (Ollama)', etat: ia === 'ok' ? 'ok' : ia === 'ko' ? 'avert' : 'attente' },
+    { texte: ia.fournisseur === 'claude' ? `IA : ${ia.modele}` : 'IA locale (Ollama)', etat: iaEtat === 'ok' ? 'ok' : iaEtat === 'ko' ? 'avert' : 'attente' },
     { texte: 'Interface prête', etat: 'ok' },
   ]
 
   useEffect(() => {
     if (etape >= lignes.length) return
     // Ne reste pas bloqué sur la sonde IA : 1,6 s maximum.
-    const t = window.setTimeout(() => setEtape((e) => e + 1), etape === 3 && ia === 'attente' ? 700 : 330)
+    const t = window.setTimeout(() => setEtape((e) => e + 1), etape === 3 && iaEtat === 'attente' ? 700 : 330)
     return () => window.clearTimeout(t)
-  }, [etape, ia, lignes.length])
+  }, [etape, iaEtat, lignes.length])
 
   useEffect(() => {
     if (etape < lignes.length) return
@@ -78,7 +84,7 @@ export function Demarrage({ onFin }: { onFin: () => void }) {
           return (
             <li key={i} className={etat}>
               <span className="mono">[{etat === 'ok' ? ' OK ' : etat === 'avert' ? 'HORS' : ' .. '}]</span> {l.texte}
-              {fait && l.etat === 'avert' && <em> — hors ligne, les QCM IA seront indisponibles</em>}
+              {fait && l.etat === 'avert' && <em> — {ia.fournisseur === 'claude' ? 'clé API absente (atelier/.env)' : 'hors ligne'}, QCM et cartes IA indisponibles</em>}
             </li>
           )
         })}

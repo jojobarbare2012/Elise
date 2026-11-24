@@ -1,13 +1,63 @@
-import type { Question } from './types'
+import type { Question, Reglages } from './types'
+import { lireJeton } from './synchro'
 import { ancrage, carteUtile, construireQuestions, plafondCartes, plafondQuestions } from './qualite'
 
-// Le LLM reste remplaçable : seul ce fichier connaît Ollama (principe d'Élise).
+// Le LLM reste remplaçable : seul ce fichier sait à qui parler (principe d'Élise).
+// - Claude (défaut) : via le serveur d'Atelier, qui garde la clé API. DÉPENDANCE CLOUD : le cours part chez Anthropic.
+// - Ollama : local, contexte limité (8192 tokens) donc cours tronqué.
 const URL_OLLAMA = '/ollama/api/chat'
-const LIMITE_COURS = 7000 // caractères, pour tenir dans num_ctx 8192
 
 export class ErreurLLM extends Error {}
 
-async function demanderJSON(modele: string, systeme: string, utilisateur: string, schema: object, temperature = 0.3): Promise<unknown> {
+export interface ConfigIA {
+  fournisseur: 'claude' | 'ollama'
+  modele: string
+}
+export const configIA = (r: Reglages): ConfigIA =>
+  (r.fournisseur ?? 'claude') === 'claude'
+    ? { fournisseur: 'claude', modele: r.modeleClaude || 'claude-opus-5-5' }
+    : { fournisseur: 'ollama', modele: r.modele || 'qwen3:14b' }
+
+/** Taille de cours envoyée : Claude lit tout (contexte d'un million de tokens) ; Ollama est limité. */
+export const limiteCours = (ia: ConfigIA) => (ia.fournisseur === 'claude' ? 600_000 : 7000)
+export const coursTronque = (ia: ConfigIA, cours: string) => cours.length > limiteCours(ia)
+
+async function demanderJSON(ia: ConfigIA, systeme: string, utilisateur: string, schema: object, nuance: 'creation' | 'relecture' = 'creation'): Promise<unknown> {
+  return ia.fournisseur === 'claude'
+    ? demanderClaude(ia.modele, systeme, utilisateur, schema, nuance === 'relecture' ? 'medium' : 'high')
+    : demanderOllama(ia.modele, systeme, utilisateur, schema, nuance === 'relecture' ? 0 : 0.3)
+}
+
+/** La clé Claude est-elle configurée sur le serveur ? (false aussi si le serveur est absent) */
+export async function etatClaude(): Promise<boolean> {
+  try {
+    const jeton = lireJeton()
+    const r = await fetch('/api/ia/etat', { headers: jeton ? { Authorization: `Bearer ${jeton}` } : {} })
+    if (!(r.headers.get('content-type') ?? '').includes('application/json')) return false
+    return Boolean((await r.json()).cle)
+  } catch {
+    return false
+  }
+}
+
+async function demanderClaude(modele: string, systeme: string, utilisateur: string, schema: object, effort: string): Promise<unknown> {
+  const entetes: Record<string, string> = { 'Content-Type': 'application/json' }
+  const jeton = lireJeton()
+  if (jeton) entetes.Authorization = `Bearer ${jeton}`
+  let reponse: Response
+  try {
+    reponse = await fetch('/api/ia/json', { method: 'POST', headers: entetes, body: JSON.stringify({ modele, systeme, utilisateur, schema, effort }) })
+  } catch {
+    throw new ErreurLLM("Serveur d'Atelier injoignable.")
+  }
+  const type = reponse.headers.get('content-type') ?? ''
+  if (!type.includes('application/json')) throw new ErreurLLM("Claude n'est utilisable qu'avec le serveur d'Atelier (npm run dev ou npm start).")
+  const corps = await reponse.json()
+  if (!reponse.ok) throw new ErreurLLM(corps?.erreur ?? `Erreur ${reponse.status}`)
+  return corps.donnees
+}
+
+async function demanderOllama(modele: string, systeme: string, utilisateur: string, schema: object, temperature: number): Promise<unknown> {
   let reponse: Response
   try {
     reponse = await fetch(URL_OLLAMA, {
@@ -53,10 +103,12 @@ const SCHEMA_QCM = {
           explication: { type: 'string' },
         },
         required: ['enonce', 'bonne_reponse', 'distracteurs', 'explication'],
+        additionalProperties: false,
       },
     },
   },
   required: ['questions'],
+  additionalProperties: false,
 }
 
 const SCHEMA_CARTES = {
@@ -68,16 +120,19 @@ const SCHEMA_CARTES = {
         type: 'object',
         properties: { recto: { type: 'string' }, verso: { type: 'string' }, extrait: { type: 'string' } },
         required: ['recto', 'verso', 'extrait'],
+        additionalProperties: false,
       },
     },
   },
   required: ['cartes'],
+  additionalProperties: false,
 }
 
 const SCHEMA_RELECTURE = {
   type: 'object',
   properties: { garder: { type: 'array', items: { type: 'integer' } } },
   required: ['garder'],
+  additionalProperties: false,
 }
 
 /** Questions bien formées, avec propositions mélangées (voir qualite.ts). */
@@ -86,7 +141,7 @@ export function validerQuestions(brut: unknown): Question[] {
 }
 
 export interface ParametresQcm {
-  modele: string
+  ia: ConfigIA
   nombre: number
   difficulte: 'facile' | 'moyen' | 'difficile'
   /** Texte du cours ; absent = sujet libre, le modèle utilise ses connaissances. */
@@ -109,10 +164,10 @@ const CONSIGNES_QCM =
 export async function genererQcm(p: ParametresQcm): Promise<Question[]> {
   const nombre = p.cours ? plafondQuestions(p.cours, p.nombre) : p.nombre
   const demande = p.cours
-    ? `Voici mon cours (${p.sujet}) :\n"""\n${p.cours.slice(0, LIMITE_COURS)}\n"""\n` +
+    ? `Voici mon cours (${p.sujet}) :\n"""\n${p.cours.slice(0, limiteCours(p.ia))}\n"""\n` +
       `Rédige au plus ${nombre} questions de difficulté ${p.difficulte} basées UNIQUEMENT sur ce cours, sur des points différents.`
     : `Rédige au plus ${nombre} questions de difficulté ${p.difficulte} sur le sujet : ${p.sujet}, sur des points différents.`
-  const brut = await demanderJSON(p.modele, CONSIGNES_QCM, demande, SCHEMA_QCM)
+  const brut = await demanderJSON(p.ia, CONSIGNES_QCM, demande, SCHEMA_QCM)
   const questions = validerQuestions(brut).slice(0, nombre)
   if (!questions.length) throw new ErreurLLM("Le modèle n'a produit aucune question exploitable, réessaie.")
   return questions
@@ -140,13 +195,14 @@ const CONSIGNES_CARTES =
  * Crée des cartes pertinentes ; n'en force aucune. Trois filtres : consignes strictes, contrôles en code
  * (réponse qui répète la question, citation absente du cours), puis relecture par le modèle.
  */
-export async function genererCartes(modele: string, sujet: string, cours: string): Promise<ResultatCartes> {
+export async function genererCartes(ia: ConfigIA, sujet: string, cours: string): Promise<ResultatCartes> {
+  const texte = cours.slice(0, limiteCours(ia))
   const plafond = plafondCartes(cours)
   if (plafond === 0) return { cartes: [], ecartees: 0, plafond }
   const brut = (await demanderJSON(
-    modele, CONSIGNES_CARTES,
-    `Cours (${sujet}) :\n"""\n${cours.slice(0, LIMITE_COURS)}\n"""\nCrée AU PLUS ${plafond} flashcards, seulement si elles sont pertinentes.`,
-    SCHEMA_CARTES, 0.2,
+    ia, CONSIGNES_CARTES,
+    `Cours (${sujet}) :\n"""\n${texte}\n"""\nCrée AU PLUS ${plafond} flashcards, seulement si elles sont pertinentes.`,
+    SCHEMA_CARTES,
   )) as { cartes?: { recto?: unknown; verso?: unknown; extrait?: unknown }[] }
 
   const propositions = (brut.cartes ?? []).filter(
@@ -165,12 +221,12 @@ export async function genererCartes(modele: string, sujet: string, cours: string
   if (retenues.length > 1) {
     try {
       const avis = (await demanderJSON(
-        modele,
+        ia,
         "Tu relis des flashcards. Garde uniquement celles où la question est précise et autonome, la réponse apporte une vraie information " +
           "(pas une reformulation de la question) et elle est exacte d'après le cours. Réponds avec les numéros à garder.",
-        `Cours :\n"""\n${cours.slice(0, LIMITE_COURS)}\n"""\nCartes :\n` +
+        `Cours :\n"""\n${texte}\n"""\nCartes :\n` +
           retenues.map((c, i) => `${i}. Q : ${c.recto}\n   R : ${c.verso}`).join('\n'),
-        SCHEMA_RELECTURE, 0,
+        SCHEMA_RELECTURE, 'relecture',
       )) as { garder?: unknown }
       if (Array.isArray(avis.garder)) {
         const index = new Set(avis.garder.filter((n): n is number => Number.isInteger(n)))

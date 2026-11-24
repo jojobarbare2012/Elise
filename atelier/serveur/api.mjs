@@ -4,6 +4,7 @@ import http from 'node:http'
 import { timingSafeEqual } from 'node:crypto'
 import path from 'node:path'
 import { creerStockage } from './stockage.mjs'
+import { creerClaude } from './claude.mjs'
 
 const LIMITE_CORPS = 64 * 1024 * 1024
 const HOTES_LOCAUX = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
@@ -40,11 +41,12 @@ function repondre(res, statut, corps) {
 }
 
 /**
- * @param {{ dossier: string, jeton?: string, ollama?: string }} options
+ * @param {{ dossier: string, jeton?: string, ollama?: string, anthropic?: { cle?: string, baseURL?: string } }} options
  * `ollama` (ex. http://127.0.0.1:11434) active le relais /ollama/* pour les appareils distants.
  */
-export function creerApi({ dossier, jeton, ollama }) {
+export function creerApi({ dossier, jeton, ollama, anthropic }) {
   const stockage = creerStockage(path.resolve(dossier))
+  const claude = creerClaude(anthropic)
 
   return async function api(req, res, next) {
     const url = new URL(req.url ?? '/', 'http://x')
@@ -71,6 +73,15 @@ export function creerApi({ dossier, jeton, ollama }) {
       if (chemin === '/api/etat' && req.method === 'GET') {
         const doc = await stockage.lire()
         return repondre(res, 200, { revision: doc?.revision ?? 0, modifieLe: doc?.modifieLe ?? null, donnees: doc?.donnees ?? null, dossier: stockage.dossier })
+      }
+      if (chemin === '/api/ia/etat' && req.method === 'GET') {
+        return repondre(res, 200, { cle: claude.cleConfiguree })
+      }
+      if (chemin === '/api/ia/json' && req.method === 'POST') {
+        let corps
+        try { corps = JSON.parse(await lireCorps(req)) } catch { return repondre(res, 400, { erreur: 'JSON invalide' }) }
+        const r = await claude.json(corps ?? {})
+        return repondre(res, r.statut, r.corps)
       }
       if (chemin === '/api/etat' && req.method === 'PUT') {
         let corps

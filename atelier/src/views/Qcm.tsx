@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { coursDe } from '../lib/texte'
 import { melanger } from '../lib/qualite'
-import { ErreurLLM, genererQcm } from '../lib/llm'
+import { configIA, ErreurLLM, genererQcm } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 import type { Qcm as TypeQcm } from '../lib/types'
@@ -38,7 +38,7 @@ export function Qcm() {
     }
     setOccupe(true)
     try {
-      const questions = await genererQcm({ modele: reglages.modele, nombre, difficulte, cours, sujet: titre })
+      const questions = await genererQcm({ ia: configIA(reglages), nombre, difficulte, cours, sujet: titre })
       const id = ajouterQcm(`${titre} — ${difficulte}`, source === 'cours' ? 'Cours' : 'Sujet libre', source === 'cours' ? pageId : null, questions)
       setEnCours({ qcmId: id })
     } catch (e) {
@@ -74,7 +74,7 @@ export function Qcm() {
               <option value="facile">Facile</option><option value="moyen">Moyen</option><option value="difficile">Difficile</option>
             </select>
           </label>
-          <button className="bouton principal" disabled={occupe} onClick={generer}>{occupe ? 'Génération…' : <><Icone nom="etincelle" taille={15} /> Générer</>}</button>
+          <button className="bouton principal" disabled={occupe} onClick={generer}>{occupe ? (configIA(reglages).fournisseur === 'claude' ? 'Claude rédige…' : 'Génération…') : <><Icone nom="etincelle" taille={15} /> Générer</>}</button>
         </div>
         {erreur && <p className="erreur">{erreur}</p>}
       </div>

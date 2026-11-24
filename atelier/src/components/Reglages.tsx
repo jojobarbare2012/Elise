@@ -1,13 +1,16 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { reconcilier, useSynchro } from '../lib/synchro'
 import { LIBELLES } from './BandeauSynchro'
+import { etatClaude } from '../lib/llm'
 
 export function Reglages({ onFermer }: { onFermer: () => void }) {
   const { reglages, majReglages, exporter, importer } = useStore()
   const fichier = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
   const synchro = useSynchro()
+  const [iaEtat, setIaEtat] = useState<boolean | null>(null)
+  useEffect(() => { void etatClaude().then(setIaEtat) }, [])
 
   const telecharger = () => {
     const blob = new Blob([exporter()], { type: 'application/json' })
@@ -33,9 +36,29 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
       <div className="dialogue" onMouseDown={(e) => e.stopPropagation()}>
         <h2>Réglages</h2>
         <label>
-          Modèle Ollama (QCM et cartes)
-          <input value={reglages.modele} onChange={(e) => majReglages({ modele: e.target.value })} />
+          IA pour les QCM et les cartes
+          <select value={reglages.fournisseur ?? 'claude'} onChange={(e) => majReglages({ fournisseur: e.target.value as 'claude' | 'ollama' })}>
+            <option value="claude">Claude (API Anthropic, en ligne)</option>
+            <option value="ollama">Ollama (local, sur ce PC)</option>
+          </select>
         </label>
+        {(reglages.fournisseur ?? 'claude') === 'claude' ? (
+          <>
+            <label>
+              Modèle Claude
+              <input value={reglages.modeleClaude ?? 'claude-opus-5-5'} onChange={(e) => majReglages({ modeleClaude: e.target.value.trim() })} />
+            </label>
+            <p className="aide">
+              {iaEtat === null ? 'Vérification de la clé…' : iaEtat ? 'Clé API configurée sur le serveur.' : 'Aucune clé : ajoute ANTHROPIC_API_KEY dans atelier/.env puis relance.'}
+              {' '}Le contenu des cours utilisés est envoyé à Anthropic.
+            </p>
+          </>
+        ) : (
+          <label>
+            Modèle Ollama
+            <input value={reglages.modele} onChange={(e) => majReglages({ modele: e.target.value })} />
+          </label>
+        )}
         <div className="ligne">
           <label>Travail (min)
             <input type="number" min={1} max={180} value={reglages.dureeTravail}

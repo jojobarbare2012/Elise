@@ -20,7 +20,18 @@ npm test                                   # SM-2, extraction de texte, validati
 - **Tableau de bord modulaire** : modules déplaçables (glisser), masquables, largeur 1 à 3 colonnes ("Configurer les modules").
 - **DA** : HUD holographique, aucune emoji (icônes SVG en traits, `src/components/Icone.tsx`), brique `Module` réutilisable.
 
-## Données et IA
+## IA : Claude (par défaut) ou Ollama
+- **Claude** (`claude-opus-5-5`) génère QCM et cartes via le serveur d'Atelier, qui garde la clé : elle n'est jamais envoyée
+  au navigateur ni au téléphone. Créer `atelier/.env` (non versionné) :
+  ```
+  ANTHROPIC_API_KEY=sk-ant-...
+  ```
+  puis relancer `npm run dev` / `npm start`. Sortie structurée (JSON garanti conforme au schéma), effort `high` pour créer,
+  `medium` pour relire ; en cas de refus du modèle, l'API relance automatiquement sur un modèle de repli (`fallbacks: "default"`).
+  **Dépendance cloud** : le texte des cours utilisés part chez Anthropic, et chaque génération est facturée sur le compte de la clé.
+- **Ollama** (local, réglable dans Réglages) reste disponible ; son contexte limité tronque les cours longs (signalé).
+
+## Données et IA (historique)
 - Données sur disque : voir « Stockage sur disque » ci-dessous (le navigateur ne garde qu'un cache).
 - IA : Ollama local via le proxy Vite `/ollama` → `:11434`. Modèle réglable (défaut `qwen3:14b`,
   celui d'Élise). Seul `src/lib/llm.ts` connaît Ollama.

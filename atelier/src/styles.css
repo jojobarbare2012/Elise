@@ -185,11 +185,11 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .menu-icone { width: 28px; height: 28px; border: 1px solid var(--trait); display: grid; place-items: center; flex: none; color: var(--accent); }
 .menu-titre { display: block; } .menu-detail { display: block; font-size: 12px; color: var(--doux); }
 .menu-vide { padding: 8px; color: var(--doux); }
-.voile { position: fixed; inset: 0; background: rgba(1, 5, 10, .72); backdrop-filter: blur(3px); z-index: 80; display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; }
+.voile { position: fixed; inset: 0; background: rgba(1, 5, 10, .72); backdrop-filter: blur(3px); z-index: 80; display: flex; justify-content: center; align-items: flex-start; padding: 8vh 12px 6vh; overflow-y: auto; }
 .palette { width: min(640px, 92vw); display: flex; flex-direction: column; gap: 8px; }
 .palette input { padding: 14px 16px; font-size: 17px; border-color: var(--trait-fort); box-shadow: var(--lueur); }
 .palette-liste { width: 100%; }
-.dialogue { position: relative; background: rgba(3, 12, 20, .96); border: 1px solid var(--trait-fort); padding: 24px 28px; width: min(500px, 92vw); box-shadow: var(--lueur), 0 20px 60px rgba(0,0,0,.7); display: flex; flex-direction: column; gap: 10px; height: fit-content; }
+.dialogue { position: relative; background: rgba(3, 12, 20, .96); border: 1px solid var(--trait-fort); padding: 24px 28px; width: min(500px, 92vw); box-shadow: var(--lueur), 0 20px 60px rgba(0,0,0,.7); display: flex; flex-direction: column; gap: 10px; height: fit-content; flex: none; }
 .dialogue h2 { margin: 0; font: 700 22px var(--titre); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
 
 /* ----- Cartes ----- */

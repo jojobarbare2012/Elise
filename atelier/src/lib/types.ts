@@ -72,8 +72,13 @@ export interface SessionTravail {
   pageId: string | null
 }
 
+export type Fournisseur = 'claude' | 'ollama'
+
 export interface Reglages {
+  /** Ancien champ, conservé : modèle Ollama. */
   modele: string
+  fournisseur?: Fournisseur
+  modeleClaude?: string
   dureeTravail: number
   dureePause: number
   accent: Accent
