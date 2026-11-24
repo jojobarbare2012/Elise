@@ -4,13 +4,21 @@ import { PluginKey } from '@tiptap/pm/state'
 import Mention from '@tiptap/extension-mention'
 import { rendreMenu, type ElementMenu } from './menuSuggestion'
 import type { Page } from '../lib/types'
+import { useStore } from '../lib/store'
 
 interface CommandeBloc extends ElementMenu {
   mots: string
-  executer: (editor: Editor, range: Range) => void
+  executer: (editor: Editor, range: Range, pageId: string | undefined) => void
 }
 
 const COMMANDES: CommandeBloc[] = [
+  {
+    icone: 'page', titre: 'Sous-page', detail: 'Crée une page dans celle-ci (ex. un chapitre)', mots: 'page sous-page chapitre',
+    executer: (e, r, pageId) => {
+      e.chain().focus().deleteRange(r).run()
+      if (pageId) useStore.getState().creerPage(pageId) // la page courante est sauvegardée en la quittant
+    },
+  },
   { icone: 'titre', detail: 'Grand titre', titre: 'Titre 1', mots: 'titre h1', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 1 }).run() },
   { icone: 'titre', titre: 'Titre 2', mots: 'titre h2', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 2 }).run() },
   { icone: 'titre', titre: 'Titre 3', mots: 'titre h3', executer: (e, r) => e.chain().focus().deleteRange(r).setNode('heading', { level: 3 }).run() },
@@ -28,6 +36,7 @@ const retirerAccents = (s: string) => s.normalize('NFD').replace(/\p{Diacritic}/
 
 export const CommandeSlash = Extension.create({
   name: 'commandeSlash',
+  addOptions() { return { pageId: undefined as string | undefined } },
   addProseMirrorPlugins() {
     return [
       Suggestion<CommandeBloc>({
@@ -40,7 +49,7 @@ export const CommandeSlash = Extension.create({
           const q = retirerAccents(query)
           return COMMANDES.filter((c) => retirerAccents(c.titre + ' ' + c.mots).includes(q)).slice(0, 10)
         },
-        command: ({ editor, range, props }) => props.executer(editor, range),
+        command: ({ editor, range, props }) => props.executer(editor, range, this.options.pageId),
         render: rendreMenu,
       }),
     ]

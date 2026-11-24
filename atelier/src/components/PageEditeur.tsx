@@ -10,7 +10,8 @@ import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
 import { useStore } from '../lib/store'
-import { liensDe } from '../lib/texte'
+import { ancetres, descendantes, liensDe } from '../lib/texte'
+import { SelecteurPage } from './SelecteurSource'
 import { CommandeSlash, mentionPages } from './extensions'
 import type { Page } from '../lib/types'
 import { Icone, ICONES_PAGE } from './Icone'
@@ -21,6 +22,7 @@ export function PageEditeur({ page }: { page: Page }) {
   const majPage = useStore((s) => s.majPage)
   const aller = useStore((s) => s.aller)
   const ouvrirDansEspace = useStore((s) => s.ouvrirDansEspace)
+  const creerPage = useStore((s) => s.creerPage)
   const pages = useStore((s) => s.pages)
   const minuteur = useRef<number>()
 
@@ -35,7 +37,7 @@ export function PageEditeur({ page }: { page: Page }) {
       TableRow,
       TableHeader,
       TableCell,
-      CommandeSlash,
+      CommandeSlash.configure({ pageId: page.id }),
       mentionPages(() => useStore.getState().pages.filter((p) => p.id !== page.id)),
     ],
     [page.id],
@@ -70,6 +72,11 @@ export function PageEditeur({ page }: { page: Page }) {
     [pages, page.id],
   )
 
+  const chemin = useMemo(() => ancetres(pages, page.id), [pages, page.id])
+  const sousPages = useMemo(() => pages.filter((p) => p.parentId === page.id), [pages, page.id])
+  // Une page ne peut pas être déplacée dans elle-même ni dans l'une de ses sous-pages.
+  const interdits = useMemo(() => new Set(descendantes(pages, page.id).map((p) => p.id)), [pages, page.id])
+
   const clicContenu = (e: React.MouseEvent) => {
     const cible = (e.target as HTMLElement).closest('[data-type="mention"]') as HTMLElement | null
     const lien = cible?.dataset.id
@@ -78,6 +85,17 @@ export function PageEditeur({ page }: { page: Page }) {
 
   return (
     <article className="page-editeur">
+      {chemin.length > 0 && (
+        <nav className="fil" aria-label="Emplacement">
+          {chemin.map((a) => (
+            <span key={a.id}>
+              <button className="lien" onClick={() => aller({ type: 'page', pageId: a.id })}>{a.titre || 'Sans titre'}</button>
+              <span className="fil-sep">/</span>
+            </span>
+          ))}
+          <span className="fil-courant">{page.titre || 'Sans titre'}</span>
+        </nav>
+      )}
       <div className="page-entete">
         <button
           className="page-icone"
@@ -95,6 +113,26 @@ export function PageEditeur({ page }: { page: Page }) {
         <button className="bouton" title="Ouvrir dans l'espace de travail" onClick={() => ouvrirDansEspace(page.id)}>
           <Icone nom="modules" taille={14} /> Espace
         </button>
+      </div>
+      <div className="sous-pages">
+        <span className="etiquette">Sous-pages</span>
+        {sousPages.map((p) => (
+          <button key={p.id} className="puce" onClick={() => aller({ type: 'page', pageId: p.id })}>
+            <Icone nom={p.icone} taille={14} /> {p.titre || 'Sans titre'}
+          </button>
+        ))}
+        <button className="puce ajout" onClick={() => creerPage(page.id)}>
+          <Icone nom="plus" taille={13} /> {sousPages.length ? 'Sous-page' : 'Ajouter une sous-page (chapitre…)'}
+        </button>
+        <span className="deplacer">
+          <span className="etiquette">Dans</span>
+          <SelecteurPage
+            valeur={page.parentId}
+            onChange={(v) => majPage(page.id, { parentId: v })}
+            vide="Racine (matière)"
+            exclure={interdits}
+          />
+        </span>
       </div>
       <div onClick={clicContenu}>
         <EditorContent editor={editeur} className="zone-edition" />

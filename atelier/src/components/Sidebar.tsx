@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../lib/store'
+import { descendantes } from '../lib/texte'
 import type { Page, Vue } from '../lib/types'
 import { Icone } from './Icone'
 import { formaterDuree, useMinuteur } from '../lib/minuteur'
@@ -29,7 +30,7 @@ function NoeudPage({ page, niveau }: { page: Page; niveau: number }) {
           <button
             title="Supprimer"
             onClick={() => {
-              const n = enfants.length
+              const n = descendantes(pages, page.id).length - 1 // toutes les sous-pages, pas seulement les directes
               if (confirm(`Supprimer « ${page.titre || 'Sans titre'} »${n ? ` et ses ${n} sous-page(s)` : ''} ?`)) supprimerPage(page.id)
             }}
           >

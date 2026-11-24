@@ -65,7 +65,8 @@ kbd { font: 11px var(--mono); border: 1px solid var(--trait); border-radius: 2px
 .noeud.actif { border-left-color: var(--accent); background: var(--panneau2); color: var(--accent); }
 .noeud-fleche { width: 18px; color: var(--doux); display: grid; place-items: center; }
 .noeud-titre { flex: 1; text-align: left; padding: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.noeud-actions { display: none; gap: 2px; } .noeud:hover .noeud-actions { display: flex; }
+.noeud-actions { display: none; gap: 2px; } .noeud:hover .noeud-actions, .noeud.actif .noeud-actions { display: flex; }
+@media (hover: none) { .noeud-actions { display: flex; } }
 .noeud-actions button { padding: 3px; color: var(--doux); } .noeud-actions button:hover { color: var(--accent); }
 .reglages { margin-top: 6px; }
 .vide { color: var(--doux); padding: 4px 10px; }
@@ -333,3 +334,13 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .bandeau { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 18px; background: rgba(40, 24, 4, .92); border-bottom: 1px solid var(--avert); color: var(--avert); backdrop-filter: blur(6px); }
 .bandeau-texte { flex: 1; min-width: 240px; color: var(--texte); }
 .bandeau input { width: 200px; }
+
+/* ===== Sous-pages, fil d'Ariane ===== */
+.fil { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: 14px; font: 13px var(--mono); }
+.fil .lien { font: inherit; } .fil-sep { margin: 0 6px; color: var(--doux); } .fil-courant { color: var(--doux); }
+.sous-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 18px; padding-bottom: 14px; border-bottom: 1px dashed var(--trait); }
+.puce { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border: 1px solid var(--trait); background: var(--panneau2); font: 600 13px var(--titre); letter-spacing: .06em; text-transform: uppercase; }
+.puce:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--lueur); }
+.puce.ajout { border-style: dashed; color: var(--doux); }
+.deplacer { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.deplacer select { max-width: 200px; padding: 2px 6px; font-size: 13px; }

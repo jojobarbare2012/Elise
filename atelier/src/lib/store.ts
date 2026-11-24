@@ -24,7 +24,7 @@ interface Etat {
   vue: Vue
 
   aller: (vue: Vue) => void
-  creerPage: (parentId: string | null, titre?: string) => string
+  creerPage: (parentId: string | null, titre?: string, naviguer?: boolean) => string
   majPage: (pageId: string, champs: Partial<Pick<Page, 'titre' | 'icone' | 'parentId'>>) => void
   majContenu: (pageId: string, contenu: JSONContent) => void
   supprimerPage: (pageId: string) => void
@@ -117,7 +117,7 @@ export const useStore = create<Etat>()(
 
       aller: (vue) => set({ vue }),
 
-      creerPage: (parentId, titre = '') => {
+      creerPage: (parentId, titre = '', naviguer = true) => {
         const nouveau = id()
         const maintenant = Date.now()
         set((s) => ({
@@ -125,7 +125,7 @@ export const useStore = create<Etat>()(
             ...s.pages,
             { id: nouveau, parentId, titre, icone: 'page', contenu: null, creeLe: maintenant, modifieLe: maintenant },
           ],
-          vue: { type: 'page', pageId: nouveau },
+          vue: naviguer ? { type: 'page', pageId: nouveau } : s.vue,
         }))
         return nouveau
       },

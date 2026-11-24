@@ -129,3 +129,19 @@ describe('décision de synchronisation', () => {
     expect(decider({ ...base, revisionConnue: 0, localVierge: false })).toBe('conflit')
   })
 })
+
+import { ancetres } from './texte'
+import type { Page } from './types'
+
+describe('arborescence de pages', () => {
+  const p = (id: string, parentId: string | null): Page => ({ id, parentId, titre: id, icone: 'page', contenu: null, creeLe: 0, modifieLe: 0 })
+  const pages = [p('matiere', null), p('chap1', 'matiere'), p('sous', 'chap1'), p('autre', null)]
+  it('donne la chaîne des parents, du plus lointain au plus proche', () => {
+    expect(ancetres(pages, 'sous').map((x) => x.id)).toEqual(['matiere', 'chap1'])
+    expect(ancetres(pages, 'matiere')).toEqual([])
+  })
+  it('résiste à une boucle de parents corrompue', () => {
+    const boucle = [p('a', 'b'), p('b', 'a')]
+    expect(ancetres(boucle, 'a').length).toBeLessThanOrEqual(2)
+  })
+})

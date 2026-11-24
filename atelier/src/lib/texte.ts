@@ -46,6 +46,19 @@ export function descendantes(pages: Page[], racineId: string): Page[] {
   return resultat
 }
 
+/** Chaîne des parents d'une page, du plus lointain au plus proche (sans la page elle-même). */
+export function ancetres(pages: Page[], pageId: string): Page[] {
+  const chaine: Page[] = []
+  const vus = new Set<string>([pageId])
+  let courant = pages.find((p) => p.id === pageId)
+  while (courant?.parentId && !vus.has(courant.parentId)) {
+    vus.add(courant.parentId)
+    courant = pages.find((p) => p.id === courant!.parentId)
+    if (courant) chaine.unshift(courant)
+  }
+  return chaine
+}
+
 /** Texte concaténé d'une page et de ses sous-pages (cours d'une matière). */
 export function coursDe(pages: Page[], racineId: string): string {
   return descendantes(pages, racineId)
