@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { estDue, nouvelleCarte, reviser } from './sm2'
 import { cartesEcrites, texteDe, liensDe } from './texte'
-import { validerQuestions } from './llm'
 
 const T0 = 1_700_000_000_000
 const JOUR = 86_400_000
@@ -48,25 +47,6 @@ describe('texte', () => {
     expect(cartesEcrites('a :: b\nrien\n :: x\nc::d')).toEqual([
       { recto: 'a', verso: 'b' }, { recto: 'c', verso: 'd' },
     ])
-  })
-})
-
-describe('validation des QCM du LLM', () => {
-  it('écarte les questions mal formées', () => {
-    const q = validerQuestions({
-      questions: [
-        { enonce: 'ok', choix: ['a', 'b', 'c', 'd'], bonne: 2, explication: 'x' },
-        { enonce: 'index hors limite', choix: ['a', 'b'], bonne: 5, explication: '' },
-        { enonce: 'un seul choix', choix: ['a'], bonne: 0, explication: '' },
-        { choix: ['a', 'b'], bonne: 0 },
-      ],
-    })
-    expect(q).toHaveLength(1)
-    expect(q[0].bonne).toBe(2)
-  })
-  it('gère une réponse sans questions', () => {
-    expect(validerQuestions({})).toEqual([])
-    expect(validerQuestions(null)).toEqual([])
   })
 })
 
@@ -143,5 +123,90 @@ describe('arborescence de pages', () => {
   it('résiste à une boucle de parents corrompue', () => {
     const boucle = [p('a', 'b'), p('b', 'a')]
     expect(ancetres(boucle, 'a').length).toBeLessThanOrEqual(2)
+  })
+})
+
+import { ancrage, carteUtile, construireQuestions, melanger, plafondCartes, plafondQuestions } from './qualite'
+import { validerQuestions } from './llm'
+
+// Générateur pseudo-aléatoire reproductible (mulberry32)
+const graine = (a: number) => () => {
+  a |= 0; a = (a + 0x6d2b79f5) | 0
+  let t = Math.imul(a ^ (a >>> 15), 1 | a)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
+
+describe('QCM : propositions mélangées par le code', () => {
+  const brut = (extra = {}) => ({
+    questions: [{ enonce: 'Quel organite produit la majorité de l’ATP ?', bonne_reponse: 'La mitochondrie',
+      distracteurs: ['Le ribosome', 'Le lysosome', 'L’appareil de Golgi'], explication: 'x', ...extra }],
+  })
+  it('la bonne réponse est répartie uniformément sur les 4 positions', () => {
+    const alea = graine(42)
+    const positions = [0, 0, 0, 0]
+    for (let i = 0; i < 4000; i++) positions[construireQuestions(brut(), alea)[0].bonne]++
+    for (const n of positions) expect(n / 4000).toBeGreaterThan(0.22)
+    for (const n of positions) expect(n / 4000).toBeLessThan(0.28)
+  })
+  it('l\'index `bonne` désigne toujours la bonne réponse après mélange', () => {
+    const alea = graine(7)
+    for (let i = 0; i < 200; i++) {
+      const q = construireQuestions(brut(), alea)[0]
+      expect(q.choix[q.bonne]).toBe('La mitochondrie')
+      expect(new Set(q.choix).size).toBe(4)
+    }
+  })
+  it('écarte les questions qui renvoient au texte, les échappatoires et les doublons', () => {
+    const q = (enonce: string, bonne: string, distracteurs: string[]) => ({ enonce, bonne_reponse: bonne, distracteurs, explication: '' })
+    const resultat = validerQuestions({ questions: [
+      q('Selon le texte, quel organite produit l’ATP ?', 'La mitochondrie', ['A1', 'B2', 'C3']),
+      q('Quel organite produit la majorité de l’ATP ?', 'La mitochondrie', ['Le ribosome', 'Toutes les réponses ci-dessus', 'Aucune des réponses']),
+      q('Quel organite produit la majorité de l’ATP ?', 'La mitochondrie', ['Le ribosome', 'Le lysosome', 'Le noyau']),
+      q('Quel organite produit la majorité de l’ATP ?', 'La mitochondrie', ['Le ribosome', 'Le lysosome', 'Le noyau']),
+      q('Quelle molécule stocke l’information génétique ?', 'L’ADN', ['L’ADN', 'L’adn', 'Le lipide']),
+      q('Question avec une seule proposition fausse ?', 'Oui', ['Non']),
+      { enonce: 'Mal formée sans réponse ?' },
+    ] })
+    expect(resultat).toHaveLength(1)
+    expect(resultat[0].enonce).toContain('majorité')
+  })
+  it('gère une réponse vide ou invalide', () => {
+    expect(validerQuestions({})).toEqual([])
+    expect(validerQuestions(null)).toEqual([])
+  })
+  it('melanger conserve les éléments', () => {
+    expect([...melanger([1, 2, 3, 4], graine(1))].sort()).toEqual([1, 2, 3, 4])
+  })
+})
+
+describe('flashcards : pertinence', () => {
+  it('rejette la carte circulaire signalée par l\'utilisateur', () => {
+    expect(carteUtile('Quelle est la base chimique commune de la matière vivante ?', 'La matière vivante a une base chimique commune.')).toBe(false)
+  })
+  it('rejette une réponse identique à la question ou une reformulation', () => {
+    expect(carteUtile('Définis la glycolyse', 'La glycolyse')).toBe(false)
+    expect(carteUtile('Qu’est-ce que la photosynthèse ?', 'La photosynthèse')).toBe(false)
+  })
+  it('accepte des cartes qui apportent une information', () => {
+    expect(carteUtile('Quels éléments forment l’essentiel de la matière vivante ?', 'Carbone, hydrogène, oxygène et azote.')).toBe(true)
+    expect(carteUtile('Quelle est la formule du glucose ?', 'C6H12O6')).toBe(true)
+    expect(carteUtile('Quel organite produit l’ATP ?', 'La mitochondrie, par phosphorylation oxydative.')).toBe(true)
+    expect(carteUtile('Combien de liaisons hydrogène relient G et C ?', '3')).toBe(true)
+  })
+  it('rejette une question trop courte', () => {
+    expect(carteUtile('Quoi ?', 'Rien')).toBe(false)
+  })
+  it('ancrage : une citation absente du cours est détectée', () => {
+    const cours = 'Les glucides sont des molécules constituées de carbone, hydrogène et oxygène. Le glucose est un ose.'
+    expect(ancrage('Le glucose est un ose', cours)).toBeGreaterThan(0.9)
+    expect(ancrage('Les protéines sont synthétisées par les ribosomes cytoplasmiques', cours)).toBeLessThan(0.5)
+  })
+  it('le plafond suit la longueur du cours et ne force jamais', () => {
+    expect(plafondCartes('Un cours très court.')).toBe(0)
+    expect(plafondCartes('mot '.repeat(200))).toBe(5)
+    expect(plafondCartes('mot '.repeat(5000))).toBe(15)
+    expect(plafondQuestions('mot '.repeat(60), 10)).toBe(2)
+    expect(plafondQuestions('mot '.repeat(1000), 10)).toBe(10)
   })
 })

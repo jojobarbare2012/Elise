@@ -14,7 +14,7 @@ const NOTES: { note: Note; titre: string }[] = [
 ]
 
 export function Cartes() {
-  const { cartes, pages, reglages, ajouterCartes, noterCarte, supprimerCarte } = useStore()
+  const { cartes, pages, reglages, ajouterCartes, noterCarte, supprimerCarte, supprimerCartes } = useStore()
   const [filtre, setFiltre] = useState<string | null>(null)
   const [revele, setRevele] = useState(false)
   const [mode, setMode] = useState<'revision' | 'gestion'>('revision')
@@ -45,8 +45,15 @@ export function Cartes() {
     if (cours.length < 40) return setInfo('Le cours est trop court pour générer des cartes.')
     setOccupe(true); setInfo('Génération en cours…')
     try {
-      const nouvelles = await genererCartes(reglages.modele, pages.find((p) => p.id === filtre)?.titre ?? '', cours, 10)
-      setInfo(`${ajouterCartes(nouvelles, filtre)} carte(s) générée(s).`)
+      const r = await genererCartes(reglages.modele, pages.find((p) => p.id === filtre)?.titre ?? '', cours)
+      if (!r.cartes.length) {
+        setInfo(r.plafond === 0
+          ? 'Ce cours est trop court pour en tirer des cartes utiles.'
+          : 'Aucune carte pertinente trouvée : le cours est peut-être trop général. Rien n’a été créé.')
+      } else {
+        const n = ajouterCartes(r.cartes, filtre)
+        setInfo(`${n} carte(s) créée(s)${r.ecartees ? `, ${r.ecartees} écartée(s) car peu pertinentes` : ''}.`)
+      }
     } catch (e) {
       setInfo((e as Error).message)
     } finally {
@@ -105,6 +112,11 @@ export function Cartes() {
           <div className="ligne">
             <button className="bouton" onClick={importerDepuis}>Importer les « Question :: Réponse »</button>
             <button className="bouton" disabled={occupe} onClick={generer}><Icone nom="etincelle" taille={15} /> Générer avec l’IA</button>
+            {portee.length > 0 && (
+              <button className="bouton" onClick={() => { if (confirm(`Supprimer ces ${portee.length} carte(s)${filtre ? ' de cette matière' : ''} ?`)) supprimerCartes(portee.map((c) => c.id)) }}>
+                <Icone nom="corbeille" taille={15} /> Supprimer ces {portee.length}
+              </button>
+            )}
             {info && <span className="aide">{info}</span>}
           </div>
           <table className="table">

@@ -32,6 +32,7 @@ interface Etat {
   ajouterCartes: (cartes: { recto: string; verso: string }[], pageId: string | null) => number
   noterCarte: (carteId: string, note: Note) => void
   supprimerCarte: (carteId: string) => void
+  supprimerCartes: (ids: string[]) => void
 
   ajouterQcm: (titre: string, source: string, pageId: string | null, questions: Question[]) => string
   enregistrerTentative: (qcmId: string, tentative: Omit<Tentative, 'id' | 'date'>) => void
@@ -163,6 +164,7 @@ export const useStore = create<Etat>()(
       noterCarte: (carteId, note) =>
         set((s) => ({ cartes: s.cartes.map((c) => (c.id === carteId ? reviser(c, note) : c)) })),
       supprimerCarte: (carteId) => set((s) => ({ cartes: s.cartes.filter((c) => c.id !== carteId) })),
+      supprimerCartes: (ids) => set((s) => ({ cartes: s.cartes.filter((c) => !ids.includes(c.id)) })),
 
       ajouterQcm: (titre, source, pageId, questions) => {
         const nouveau = id()

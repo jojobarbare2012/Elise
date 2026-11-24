@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { coursDe } from '../lib/texte'
+import { melanger } from '../lib/qualite'
 import { ErreurLLM, genererQcm } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
@@ -114,6 +115,8 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
   const [ajout, setAjout] = useState('')
 
   const question = qcm.questions[i]
+  // Ordre des propositions re-mélangé à chaque tentative (on ne mémorise pas la position).
+  const ordres = useMemo(() => qcm.questions.map((q) => melanger(q.choix.map((_, k) => k))), [qcm.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const erreurs = reponses.map((r, k) => (r === qcm.questions[k].bonne ? -1 : k)).filter((k) => k >= 0)
   const score = reponses.length - erreurs.length
 
@@ -173,15 +176,15 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
       <div className="panneau">
         <h2 className="enonce">{question.enonce}</h2>
         <div className="choix">
-          {question.choix.map((c, k) => {
+          {ordres[i].map((o, k) => {
             let classe = 'choix-item'
             if (choix !== null) {
-              if (k === question.bonne) classe += ' juste'
-              else if (k === choix) classe += ' faux'
+              if (o === question.bonne) classe += ' juste'
+              else if (o === choix) classe += ' faux'
             }
             return (
-              <button key={k} className={classe} disabled={choix !== null} onClick={() => setChoix(k)}>
-                <span className="lettre">{String.fromCharCode(65 + k)}</span>{c}
+              <button key={o} className={classe} disabled={choix !== null} onClick={() => setChoix(o)}>
+                <span className="lettre">{String.fromCharCode(65 + k)}</span>{question.choix[o]}
               </button>
             )
           })}
