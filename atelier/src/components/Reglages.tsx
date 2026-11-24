@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../lib/store'
+import { reconcilier, useSynchro } from '../lib/synchro'
+import { LIBELLES } from './BandeauSynchro'
 
 export function Reglages({ onFermer }: { onFermer: () => void }) {
   const { reglages, majReglages, exporter, importer } = useStore()
   const fichier = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
+  const synchro = useSynchro()
 
   const telecharger = () => {
     const blob = new Blob([exporter()], { type: 'application/json' })
@@ -53,8 +56,15 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
             <button key={a} data-accent={a} className={'pastille' + (reglages.accent === a ? ' actif' : '')} title={a} onClick={() => majReglages({ accent: a })} />
           ))}
         </div>
-        <h3>Sauvegarde</h3>
-        <p className="aide">Les données sont stockées dans ce navigateur. Exporte-les régulièrement.</p>
+        <h3>Stockage</h3>
+        <p className="aide">
+          {synchro.statut === 'local'
+            ? "Aucun serveur Atelier détecté : les données restent dans ce navigateur. Lance « npm start » pour les enregistrer sur disque."
+            : <>État : <strong>{LIBELLES[synchro.statut]}</strong>{synchro.derniere ? ` (dernière synchro ${new Date(synchro.derniere).toLocaleTimeString('fr-FR')})` : ''}.
+              {synchro.dossier && <> Dossier des données : <span className="mono">{synchro.dossier}</span></>}</>}
+        </p>
+        <div className="ligne"><button className="bouton" onClick={() => void reconcilier()}>Synchroniser maintenant</button></div>
+        <h3>Export manuel</h3>
         <div className="ligne">
           <button className="bouton" onClick={telecharger}>Exporter (JSON)</button>
           <button className="bouton" onClick={() => fichier.current?.click()}>Importer…</button>

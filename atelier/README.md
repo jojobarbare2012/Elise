@@ -21,7 +21,7 @@ npm test                                   # SM-2, extraction de texte, validati
 - **DA** : HUD holographique, aucune emoji (icônes SVG en traits, `src/components/Icone.tsx`), brique `Module` réutilisable.
 
 ## Données et IA
-- Données dans le `localStorage` du navigateur : **exporter régulièrement** (Réglages).
+- Données sur disque : voir « Stockage sur disque » ci-dessous (le navigateur ne garde qu'un cache).
 - IA : Ollama local via le proxy Vite `/ollama` → `:11434`. Modèle réglable (défaut `qwen3:14b`,
   celui d'Élise). Seul `src/lib/llm.ts` connaît Ollama.
 
@@ -34,3 +34,23 @@ npm test                                   # SM-2, extraction de texte, validati
   désactivable dans les Réglages, ignoré si le système demande moins d'animations.
 - **Minuteur** : anneau de progression façon réacteur ; le décompte actif s'affiche dans la barre latérale.
 - **Transitions** : balayage lumineux et apparition en fondu à chaque changement de vue, modules en cascade.
+
+## Stockage sur disque
+Fichier unique et lisible : `atelier/donnees/atelier.json` (hors Git), avec une copie `.bak` et une sauvegarde par jour
+dans `donnees/sauvegardes/` (30 jours gardés). Écriture atomique ; une révision détecte les modifications faites ailleurs.
+Seules les données (pages, cartes, QCM, tâches, examens, sessions, réglages) sont synchronisées ; la disposition des modules et
+l'espace de travail restent propres à chaque appareil.
+
+- **Sur le PC** : `npm run dev` suffit (le stockage tourne dans le serveur Vite) ; les données du navigateur sont migrées
+  automatiquement vers le disque au premier lancement.
+- **Depuis le téléphone** : `npm start` compile l'appli et lance un serveur unique (port 5175) qui sert l'interface, le stockage
+  et un relais vers Ollama. Il n'écoute que sur la machine ; pour y accéder à distance, **uniquement via VPN** (Tailscale/WireGuard) :
+  ```powershell
+  $env:ATELIER_HOTE = "0.0.0.0"; $env:ATELIER_JETON = "un-long-secret"; npm start
+  ```
+  Le serveur refuse de démarrer hors de la machine sans jeton ; le téléphone demande le jeton au premier accès.
+- Variables : `ATELIER_PORT`, `ATELIER_HOTE`, `ATELIER_JETON`, `ATELIER_DONNEES`, `OLLAMA_URL`.
+- **Conflit** (l'autre appareil a modifié pendant que celui-ci avait des changements non envoyés) : un bandeau propose
+  d'exporter sa version, de prendre celle du disque ou de garder la sienne ; rien n'est jamais écrasé automatiquement.
+- **Restaurer** : copier un fichier de `donnees/sauvegardes/` vers `donnees/atelier.json` (serveur arrêté), :
+  les appareils se resynchronisent seuls.

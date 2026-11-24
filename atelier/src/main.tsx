@@ -6,6 +6,9 @@ import '@fontsource/rajdhani/700.css'
 import '@fontsource/share-tech-mono/400.css'
 import App from './App'
 import './styles.css'
+import { demarrerSynchro } from './lib/synchro'
+
+demarrerSynchro()
 
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>

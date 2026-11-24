@@ -3,6 +3,7 @@ import { useStore } from '../lib/store'
 import type { Page, Vue } from '../lib/types'
 import { Icone } from './Icone'
 import { formaterDuree, useMinuteur } from '../lib/minuteur'
+import { IndicateurDisque } from './BandeauSynchro'
 
 function NoeudPage({ page, niveau }: { page: Page; niveau: number }) {
   const pages = useStore((s) => s.pages)
@@ -88,6 +89,7 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
           <span className="mono">{formaterDuree(finLe - maintenant)}</span>
         </button>
       )}
+      <IndicateurDisque />
       <button className="nav-item reglages" onClick={onReglages}><Icone nom="reglages" /> Réglages et sauvegarde</button>
     </aside>
   )

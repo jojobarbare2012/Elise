@@ -108,3 +108,24 @@ describe('espace de travail', () => {
     expect(normaliser([0, 0]).reduce((s, p) => s + p, 0)).toBeCloseTo(1)
   })
 })
+
+import { decider } from './synchro'
+
+describe('décision de synchronisation', () => {
+  const base = { disqueVide: false, revisionDisque: 3, revisionConnue: 3, sale: false, localVierge: false }
+  it('disque vide : on envoie (migration depuis le navigateur)', () => {
+    expect(decider({ ...base, disqueVide: true, revisionDisque: 0, revisionConnue: 0 })).toBe('pousser')
+  })
+  it('à jour : rien ; modifié localement : envoi', () => {
+    expect(decider(base)).toBe('rien')
+    expect(decider({ ...base, sale: true })).toBe('pousser')
+  })
+  it('le disque a avancé : on adopte, sauf modifications locales non envoyées', () => {
+    expect(decider({ ...base, revisionDisque: 5 })).toBe('adopter')
+    expect(decider({ ...base, revisionDisque: 5, sale: true })).toBe('conflit')
+  })
+  it('appareil neuf (vierge) : adopte le disque ; appareil déjà rempli jamais synchronisé : conflit', () => {
+    expect(decider({ ...base, revisionConnue: 0, localVierge: true })).toBe('adopter')
+    expect(decider({ ...base, revisionConnue: 0, localVierge: false })).toBe('conflit')
+  })
+})

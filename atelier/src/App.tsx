@@ -12,6 +12,7 @@ import { Taches } from './views/Taches'
 import { Planning } from './views/Planning'
 import { Espace } from './views/Espace'
 import { Demarrage } from './components/Demarrage'
+import { BandeauSynchro } from './components/BandeauSynchro'
 
 export default function App() {
   const vue = useStore((s) => s.vue)
@@ -46,6 +47,7 @@ export default function App() {
     <div className="appli">
       <Sidebar onRecherche={() => setRecherche(true)} onReglages={() => setReglages(true)} />
       <main className="principal">
+        <BandeauSynchro />
         <div key={'f-' + (vue.type === 'page' ? vue.pageId : vue.type)} className="faisceau" />
         <div key={vue.type === 'page' ? 'page-' + vue.pageId : vue.type} className={'vue-anim' + (vue.type === 'espace' ? ' plein' : '')}>
           {vue.type === 'accueil' && <Accueil />}

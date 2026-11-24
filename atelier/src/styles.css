@@ -326,3 +326,10 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .dialogue input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; padding: 0; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+
+/* ===== Stockage / synchronisation ===== */
+.indicateur-disque { display: flex; align-items: center; gap: 10px; padding: 6px 10px; margin-top: 8px; text-align: left; }
+.indicateur-disque:hover .etiquette { color: var(--accent); }
+.bandeau { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 18px; background: rgba(40, 24, 4, .92); border-bottom: 1px solid var(--avert); color: var(--avert); backdrop-filter: blur(6px); }
+.bandeau-texte { flex: 1; min-width: 240px; color: var(--texte); }
+.bandeau input { width: 200px; }
