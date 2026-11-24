@@ -22,6 +22,7 @@ export default defineConfig({
   plugins: [react(), pluginStockage()],
   server: {
     port: 5174,
+    strictPort: true, // échoue si le port est pris, au lieu de basculer en silence sur un autre
     proxy: {
       '/ollama': {
         target: 'http://localhost:11434',
