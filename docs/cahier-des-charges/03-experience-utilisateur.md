@@ -1,6 +1,6 @@
 # 03 — Expérience utilisateur
 
-> **Statut : brouillon v1, à valider.** Décisions D40 à D50 issues de la discussion de cadrage.
+> **Statut : brouillon v1, à valider.** Décisions D40 à D53 issues de la discussion de cadrage.
 > Les passages marqués *[proposition]* sont des ajouts de Claude, à confirmer ou supprimer.
 
 ## 1. Principe général
@@ -15,7 +15,14 @@ La voix est l'interaction principale. Les exigences sur sa rapidité, sa fluidit
 
 - **Lunettes connectées :** affichage **minimaliste**, limité aux **mesures** et aux **alertes**. Rien de surchargé. L'affichage de **plans 3D** est une option à évaluer, pas une exigence ferme. *(D40, D41)*
 - **PC :** une **présence visuelle discrète**, la voix faisant l'essentiel. Un **tableau de bord** est disponible à la demande comme outil d'appoint ; son contenu (projets, tâches, rappels, mesures) reste à définir. *(D42, D43)*
+- **PC, au quotidien :** une **icône discrète dans un coin de l'écran**. Un **HUD complet** doit pouvoir s'ouvrir ; son contenu reste à définir, mais il doit être conçu pour pouvoir, plus tard, occuper un **écran dédié**. *(D52, D53)*
 - **Téléphone :** **voix** et **chat écrit**. L'écrit sert quand je ne peux pas parler. *(D49)*
+
+## 3 bis. Direction artistique
+
+Style **JARVIS** : l'**anneau central animé**, qui réagit à la voix, et l'**ambiance** (couleurs, lumière) de l'interface de référence. Ce langage visuel est commun à **tous les appareils**. *(D51)*
+
+*L'interface de référence est dense ; je ne retiens que l'anneau et l'ambiance, pas la densité des panneaux, conformément à D40.* *[proposition]*
 
 ## 4. Continuité entre appareils
 
@@ -35,7 +42,8 @@ La voix est l'interaction principale. Les exigences sur sa rapidité, sa fluidit
 | Point | Chapitre |
 |---|---|
 | Une urgence peut-elle l'autoriser à parler ou écrire pendant un cours ? Alerte écrite discrète ? | 05 |
-| Contenu et organisation du tableau de bord | 03 (à reprendre) |
+| Contenu et organisation du HUD complet | 03 (à reprendre) |
+| Interface séparable de l'application pour un écran dédié (contrainte d'architecture) | 07, 08 |
 | Affichage des plans 3D : exigence ou option, selon les lunettes | 06 |
 | Que fait Élise si une donnée sensible lui est nécessaire alors que ma machine est injoignable ? | 08, 09 |
 | Liste de ce qui est « sensible » | 09 |
