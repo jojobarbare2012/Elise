@@ -2,6 +2,8 @@
 // DÉPENDANCE CLOUD : le contenu des cours (texte, PDF, photos) envoyé ici part chez Anthropic.
 import Anthropic from '@anthropic-ai/sdk'
 
+const SANS_CLE = 'Aucune clé API Anthropic trouvée. Crée le fichier atelier/.env contenant ANTHROPIC_API_KEY=sk-ant-…, puis relance le serveur (npm run dev).'
+
 const MODELES_AUTORISES = /^claude-[a-z0-9-]+$/
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
 const TYPES_DOCUMENTS = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'])
@@ -93,7 +95,12 @@ export function creerClaude({ cle, baseURL } = {}) {
       if (e instanceof Anthropic.BadRequestError) return { statut: 400, corps: { erreur: `Requête refusée par l’API : ${e.message}` } }
       if (e instanceof Anthropic.APIConnectionError) return { statut: 503, corps: { erreur: 'API Anthropic injoignable (connexion Internet ?).' } }
       if (e instanceof Anthropic.APIError) return { statut: 502, corps: { erreur: `Erreur de l’API Anthropic (${e.status ?? '?'}).` } }
+      if (e instanceof Error && /resolve authentication method/i.test(e.message)) {
+        // Aucune clé trouvée (ni ANTHROPIC_API_KEY, ni profil `ant`) : le SDK échoue avant même d'appeler l'API.
+        return { statut: 503, corps: { erreur: SANS_CLE } }
+      }
       console.error('[ATELIER] erreur Claude :', e)
+      if (e instanceof Anthropic.AnthropicError) return { statut: 500, corps: { erreur: `Erreur du SDK Anthropic : ${e.message.slice(0, 200)}` } }
       return { statut: 500, corps: { erreur: 'Erreur inattendue pendant l’appel à Claude.' } }
     }
   }

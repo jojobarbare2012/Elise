@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../lib/store'
-import { configIA, ErreurLLM, importerCours, TAILLE_MAX_IMPORT, TYPES_IMPORT } from '../lib/llm'
+import { configIA, ErreurLLM, etatClaude, importerCours, TAILLE_MAX_IMPORT, TYPES_IMPORT } from '../lib/llm'
 import { lireBase64 } from '../lib/importCours'
 import { SelecteurPage } from './SelecteurSource'
 import { Icone } from './Icone'
@@ -29,6 +29,11 @@ export function ImportCours({ parentInitial, onFermer }: { parentInitial: string
     if (!fichiers.length) return
     if (taille > TAILLE_MAX_IMPORT) { setEtat('erreur'); setMessage('Trop volumineux (24 Mo maximum) : importe le cours en plusieurs fois.'); return }
     setEtat('envoi')
+    if (!(await etatClaude())) {
+      setEtat('erreur')
+      setMessage('Aucune clé API Anthropic configurée : crée le fichier atelier/.env contenant ANTHROPIC_API_KEY=sk-ant-…, puis relance « npm run dev ».')
+      return
+    }
     setMessage('Claude lit le document et le met en page… (de 30 s à quelques minutes pour un long PDF)')
     try {
       const documents = await Promise.all(fichiers.map(async (f) => ({ media_type: f.type, data: await lireBase64(f) })))

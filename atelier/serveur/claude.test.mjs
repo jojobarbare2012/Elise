@@ -133,3 +133,19 @@ describe('relais Claude : cours en cache, pièces jointes, coût', () => {
     expect(coutEstime('modele-inconnu', { input_tokens: 1 })).toBeNull()
   })
 })
+
+describe('sans clé API', () => {
+  it('message clair au lieu d’une « erreur inattendue »', async () => {
+    const { creerClaude } = await import('./claude.mjs')
+    const ancien = { ...process.env }
+    for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_PROFILE']) delete process.env[k]
+    process.env.HOME = '/nonexistent-atelier'
+    try {
+      const r = await creerClaude({ baseURL: urlFausse }).json(base)
+      expect(r.statut).toBe(503)
+      expect(r.corps.erreur).toMatch(/atelier\/\.env/)
+    } finally {
+      Object.assign(process.env, ancien)
+    }
+  })
+})
