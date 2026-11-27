@@ -370,3 +370,4 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .badge-nature.valeur { color: var(--avert); border-color: var(--avert); }
 .badge-nature.fait { color: var(--ok); border-color: var(--ok); }
 .sidebar-section span { display: flex; gap: 6px; }
+.nav-item.import-cours { margin-top: 8px; border: 1px dashed var(--trait); color: var(--accent); }

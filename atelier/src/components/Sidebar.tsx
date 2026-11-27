@@ -81,12 +81,12 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
       <button className="nav-item" onClick={() => setImporter(true)}>
         <Icone nom="livre" /> Importer un cours
       </button>
+      <button className="nav-item import-cours" title="Importer un cours (PDF, photos)" onClick={() => setImporter(true)}>
+        <Icone nom="livre" /> Importer un cours
+      </button>
       <div className="sidebar-section">
         <span>Pages & matières</span>
-        <span>
-          <button title="Importer un cours (PDF, photos)" onClick={() => setImporter(true)}><Icone nom="livre" taille={15} /></button>
-          <button title="Nouvelle page" onClick={() => creerPage(null)}><Icone nom="plus" taille={15} /></button>
-        </span>
+        <button title="Nouvelle page" onClick={() => creerPage(null)}><Icone nom="plus" taille={15} /></button>
       </div>
       <div className="arbre">
         {racines.map((p) => <NoeudPage key={p.id} page={p} niveau={0} />)}
