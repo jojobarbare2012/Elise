@@ -78,6 +78,9 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
           </button>
         ))}
       </nav>
+      <button className="nav-item" onClick={() => setImporter(true)}>
+        <Icone nom="livre" /> Importer un cours
+      </button>
       <div className="sidebar-section">
         <span>Pages & matières</span>
         <span>
