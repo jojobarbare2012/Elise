@@ -9,7 +9,7 @@ import { descendantes } from './texte'
 import { iconeValide } from '../components/Icone'
 import { avecNouveau, deplacer, sans } from './espace'
 
-const id = () => crypto.randomUUID()
+import { nouvelId as id } from './id'
 
 interface Etat {
   pages: Page[]

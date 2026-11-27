@@ -92,7 +92,13 @@ export function creerClaude({ cle, baseURL } = {}) {
         return { statut: 502, corps: { erreur: 'Clé API Anthropic absente ou refusée (ANTHROPIC_API_KEY dans atelier/.env).' } }
       }
       if (e instanceof Anthropic.RateLimitError) return { statut: 429, corps: { erreur: 'Limite de requêtes Anthropic atteinte, réessaie dans un instant.' } }
-      if (e instanceof Anthropic.BadRequestError) return { statut: 400, corps: { erreur: `Requête refusée par l’API : ${e.message}` } }
+      if (e instanceof Anthropic.BadRequestError && /credit balance/i.test(e.message)) {
+        return { statut: 402, corps: { erreur: 'Crédits API épuisés : ajoute des crédits sur console.anthropic.com (Plans & Billing), ou passe sur Ollama dans les Réglages. L’abonnement Claude Pro ne couvre pas l’API.' } }
+      }
+      if (e instanceof Anthropic.BadRequestError) {
+        const detail = (e.error && typeof e.error === 'object' && e.error.error?.message) || e.message
+        return { statut: 400, corps: { erreur: `Requête refusée par l’API : ${String(detail).slice(0, 300)}` } }
+      }
       if (e instanceof Anthropic.APIConnectionError) return { statut: 503, corps: { erreur: 'API Anthropic injoignable (connexion Internet ?).' } }
       if (e instanceof Anthropic.APIError) return { statut: 502, corps: { erreur: `Erreur de l’API Anthropic (${e.status ?? '?'}).` } }
       if (e instanceof Error && /resolve authentication method/i.test(e.message)) {

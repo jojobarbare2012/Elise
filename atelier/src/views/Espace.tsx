@@ -13,7 +13,7 @@ import { Taches } from './Taches'
 import { Planning } from './Planning'
 import type { Pane, TypePane } from '../lib/types'
 
-const id = () => crypto.randomUUID()
+import { nouvelId as id } from '../lib/id'
 const pane = (type: TypePane, poids: number): Pane => ({ id: id(), type, pageId: null, poids })
 
 const PRESETS: { titre: string; panes: () => Pane[] }[] = [

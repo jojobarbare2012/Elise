@@ -13,10 +13,14 @@ import { Planning } from './views/Planning'
 import { Espace } from './views/Espace'
 import { Demarrage } from './components/Demarrage'
 import { BandeauSynchro } from './components/BandeauSynchro'
+import { Icone } from './components/Icone'
 
 export default function App() {
   const vue = useStore((s) => s.vue)
   const aller = useStore((s) => s.aller)
+  const [menu, setMenu] = useState(false)
+  // Sur téléphone, la barre latérale est un tiroir : il se referme dès qu'on navigue.
+  useEffect(() => setMenu(false), [vue])
   const page = useStore((s) => (s.vue.type === 'page' ? s.pages.find((p) => p.id === (s.vue as { pageId: string }).pageId) : undefined))
   const [recherche, setRecherche] = useState(false)
   const [reglages, setReglages] = useState(false)
@@ -44,8 +48,14 @@ export default function App() {
   useEffect(() => { if (vue.type === 'page' && !page) aller({ type: 'accueil' }) }, [vue, page, aller])
 
   return (
-    <div className="appli">
-      <Sidebar onRecherche={() => setRecherche(true)} onReglages={() => setReglages(true)} />
+    <div className={'appli' + (menu ? ' menu-ouvert' : '')}>
+      <header className="barre-mobile">
+        <button className="bouton-menu" aria-label="Menu" onClick={() => setMenu(!menu)}><span /><span /><span /></button>
+        <span className="barre-mobile-titre">ATELIER</span>
+        <button className="bouton-menu-recherche" aria-label="Rechercher" onClick={() => setRecherche(true)}><Icone nom="recherche" /></button>
+      </header>
+      {menu && <div className="voile-menu" onClick={() => setMenu(false)} />}
+      <Sidebar onRecherche={() => { setMenu(false); setRecherche(true) }} onReglages={() => { setMenu(false); setReglages(true) }} />
       <main className="principal">
         <BandeauSynchro />
         <div key={'f-' + (vue.type === 'page' ? vue.pageId : vue.type)} className="faisceau" />

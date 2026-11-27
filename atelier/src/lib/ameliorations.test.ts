@@ -101,3 +101,18 @@ describe('maîtrise et points faibles', () => {
     expect(pointsFaibles(cartes, qcms, null, 2)).toHaveLength(2)
   })
 })
+
+import { nouvelId } from './id'
+describe('identifiants hors contexte sécurisé (téléphone en http://)', () => {
+  it('génère des UUID v4 valides et uniques sans randomUUID', () => {
+    const original = globalThis.crypto.randomUUID
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true })
+    try {
+      const ids = new Set(Array.from({ length: 1000 }, () => nouvelId()))
+      expect(ids.size).toBe(1000)
+      for (const x of [...ids].slice(0, 20)) expect(x).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    } finally {
+      Object.defineProperty(globalThis.crypto, 'randomUUID', { value: original, configurable: true })
+    }
+  })
+})

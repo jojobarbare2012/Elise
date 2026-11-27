@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { estDue, libelleIntervalle, type Note } from '../lib/sm2'
 import { cartesEcrites, coursDe, descendantes, texteDe } from '../lib/texte'
@@ -19,6 +19,8 @@ export function Cartes() {
   const { cartes, pages, reglages, ajouterCartes, noterCarte, supprimerCarte, supprimerCartes } = useStore()
   const [filtre, setFiltre] = useState<string | null>(null)
   const [revele, setRevele] = useState(false)
+  const [glisse, setGlisse] = useState(0)
+  const depart = useRef<number | null>(null)
   const [mode, setMode] = useState<'revision' | 'gestion'>('revision')
   const [recto, setRecto] = useState('')
   const [verso, setVerso] = useState('')
@@ -79,10 +81,26 @@ export function Cartes() {
       {mode === 'revision' ? (
         courante ? (
           <div className="carte-zone">
-            <div className="flashcard" onClick={() => setRevele(true)}>
+            <div
+              className={'flashcard' + (glisse > 60 ? ' vers-bien' : glisse < -60 ? ' vers-revoir' : '')}
+              style={{ transform: glisse ? `translateX(${glisse}px) rotate(${glisse / 40}deg)` : undefined }}
+              onClick={() => !glisse && setRevele(true)}
+              onPointerDown={(e) => { if (revele && e.pointerType !== 'mouse') depart.current = e.clientX }}
+              onPointerMove={(e) => { if (depart.current !== null) setGlisse(e.clientX - depart.current) }}
+              onPointerUp={() => {
+                if (depart.current === null) return
+                depart.current = null
+                // Geste sur téléphone : glisser à droite = Bien, à gauche = À revoir.
+                if (glisse > 90) { noterCarte(courante.id, 'bien'); setRevele(false) }
+                else if (glisse < -90) { noterCarte(courante.id, 'encore'); setRevele(false) }
+                setGlisse(0)
+              }}
+              onPointerCancel={() => { depart.current = null; setGlisse(0) }}
+            >
               <div className="flashcard-face">{courante.recto}</div>
               {revele && <div className="flashcard-verso">{courante.verso}</div>}
               {!revele && <div className="aide">Clique pour afficher la réponse</div>}
+              {revele && <div className="aide geste-aide">Sur téléphone : glisse à droite (Bien) ou à gauche (À revoir)</div>}
             </div>
             {revele ? (
               <div className="notes">

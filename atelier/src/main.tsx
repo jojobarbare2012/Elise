@@ -10,6 +10,12 @@ import { demarrerSynchro } from './lib/synchro'
 
 demarrerSynchro()
 
+// Appli installable + interface hors ligne. Le navigateur n'autorise le service worker qu'en contexte sécurisé
+// (localhost ou HTTPS, par ex. `tailscale serve`) ; ailleurs l'appli fonctionne normalement, sans installation.
+if (import.meta.env.PROD && 'serviceWorker' in navigator && window.isSecureContext) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })
+}
+
 createRoot(document.getElementById('racine')!).render(
   <StrictMode>
     <App />

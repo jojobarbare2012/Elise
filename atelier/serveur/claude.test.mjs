@@ -149,3 +149,12 @@ describe('sans clé API', () => {
     }
   })
 })
+
+describe('crédits épuisés', () => {
+  it('message lisible au lieu du JSON brut', async () => {
+    reponseProgrammee = { statut: 400, json: { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' } } }
+    const r = await demander(base)
+    expect(r.status).toBe(402)
+    expect((await r.json()).erreur).toMatch(/^Crédits API épuisés/)
+  })
+})

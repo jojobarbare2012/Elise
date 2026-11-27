@@ -371,3 +371,39 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .badge-nature.fait { color: var(--ok); border-color: var(--ok); }
 .sidebar-section span { display: flex; gap: 6px; }
 .nav-item.import-cours { margin-top: 8px; border: 1px dashed var(--trait); color: var(--accent); }
+
+/* ===== Téléphone : tiroir de navigation, barre du haut, gestes ===== */
+.barre-mobile, .voile-menu { display: none; }
+.flashcard { touch-action: pan-y; transition: transform .2s ease, border-color .2s; }
+.flashcard.vers-bien { border-color: var(--ok); box-shadow: 0 0 24px rgba(61, 255, 176, .35); }
+.flashcard.vers-revoir { border-color: var(--ko); box-shadow: 0 0 24px rgba(255, 77, 106, .35); }
+.geste-aide { display: none; }
+@media (hover: none) { .geste-aide { display: block; } }
+@media (max-width: 760px) {
+  .appli { flex-direction: column; }
+  .barre-mobile { display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 50; padding: 8px 12px; border-bottom: 1px solid var(--trait); background: rgba(3, 12, 20, .92); backdrop-filter: blur(6px); }
+  .barre-mobile-titre { flex: 1; font: 700 18px var(--titre); letter-spacing: .38em; color: var(--accent); text-shadow: var(--lueur); }
+  .bouton-menu { width: 40px; height: 40px; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 9px; border: 1px solid var(--trait); }
+  .bouton-menu span { height: 2px; background: var(--accent); box-shadow: var(--lueur); }
+  .bouton-menu-recherche { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--trait); color: var(--accent); }
+  .sidebar { position: fixed; inset: 0 auto 0 0; width: min(300px, 84vw); z-index: 90; transform: translateX(-105%); transition: transform .25s cubic-bezier(.2, .8, .2, 1); }
+  .appli.menu-ouvert .sidebar { transform: none; box-shadow: 0 0 40px rgba(0, 0, 0, .7); }
+  .voile-menu { display: block; position: fixed; inset: 0; z-index: 85; background: rgba(1, 5, 10, .6); }
+  main.principal { flex: 1; min-height: 0; }
+  .nav-item, .recherche-btn { padding: 11px 12px; }
+  .noeud-titre { padding: 9px 4px; }
+  .noeud-actions button { padding: 8px; }
+  .vue, .page-editeur { padding: 18px 14px 80px; }
+  .vue-entete h1 { font-size: 24px; }
+  .page-titre { font-size: 26px; }
+  .grille-modules { grid-template-columns: 1fr; } .cellule.t2, .cellule.t3 { grid-column: span 1; }
+  .notes { grid-template-columns: 1fr 1fr; }
+  .notes .bouton { padding: 14px 10px; }
+  .flashcard { min-height: 46vh; padding: 22px; }
+  .choix-item { padding: 14px; }
+  .bouton { padding: 9px 16px; }
+  .deplacer { margin-left: 0; width: 100%; } .deplacer select { max-width: none; flex: 1; }
+  .espace-rangee { overflow-x: auto; scroll-snap-type: x mandatory; } .pane-groupe { min-width: 88vw; scroll-snap-align: start; }
+  .tuiles { grid-template-columns: 1fr 1fr; }
+  .ligne-maitrise { grid-template-columns: 1fr 60px; } .lm-barre { grid-column: 1 / -1; grid-row: 2; } .lm-detail { grid-row: 3; }
+}
