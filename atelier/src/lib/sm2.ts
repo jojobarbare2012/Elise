@@ -1,4 +1,4 @@
-import type { Carte } from './types'
+import type { Carte, EtatRevision, Sens } from './types'
 
 export type Note = 'encore' | 'difficile' | 'bien' | 'facile'
 
@@ -47,4 +47,19 @@ export function libelleIntervalle(carte: Carte, note: Note): string {
   const suivant = reviser(carte, note, 0)
   if (suivant.intervalle === 0) return '10 min'
   return suivant.intervalle === 1 ? '1 jour' : `${suivant.intervalle} jours`
+}
+
+const ETAT_NEUF: EtatRevision = { facilite: 2.5, intervalle: 0, repetitions: 0, echeance: 0 }
+
+/** La carte vue dans un sens : en sens inverse, on utilise son suivi séparé (neuf = à réviser tout de suite). */
+export function selonSens(carte: Carte, sens: Sens): Carte {
+  if (sens === 'normal') return carte
+  return { ...carte, ...(carte.inverse ?? ETAT_NEUF), recto: carte.verso, verso: carte.recto }
+}
+
+/** Note une carte dans un sens donné, sans toucher au suivi de l'autre sens. */
+export function reviserSelonSens(carte: Carte, sens: Sens, note: Note, maintenant = Date.now()): Carte {
+  if (sens === 'normal') return reviser(carte, note, maintenant)
+  const r = reviser(selonSens(carte, 'inverse'), note, maintenant)
+  return { ...carte, inverse: { facilite: r.facilite, intervalle: r.intervalle, repetitions: r.repetitions, echeance: r.echeance, oublis: r.oublis } }
 }

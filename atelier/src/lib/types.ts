@@ -21,7 +21,12 @@ export interface Carte {
   echeance: number // timestamp ms
   oublis?: number // nombre de « À revoir » : repère les points faibles
   nature?: NatureCarte
+  /** Suivi séparé quand on révise dans le sens réponse → question. */
+  inverse?: EtatRevision
 }
+
+export type EtatRevision = Pick<Carte, 'facilite' | 'intervalle' | 'repetitions' | 'echeance' | 'oublis'>
+export type Sens = 'normal' | 'inverse'
 
 /** Les flashcards ne portent que sur des définitions ou des données précises (valeurs chiffrées, formules, noms). */
 export type NatureCarte = 'definition' | 'valeur' | 'fait'
@@ -51,6 +56,8 @@ export interface Qcm {
   questions: Question[]
   creeLe: number
   tentatives: Tentative[]
+  /** Examen blanc : durée en minutes, pas de correction avant la fin. */
+  dureeExamen?: number
 }
 
 export type Statut = 'a_faire' | 'en_cours' | 'fait'
@@ -70,6 +77,8 @@ export interface Examen {
   titre: string
   date: string // YYYY-MM-DD
   pageId: string | null
+  /** Séances du plan cochées (clés « date|type|page »). */
+  faits?: string[]
 }
 
 export interface SessionTravail {

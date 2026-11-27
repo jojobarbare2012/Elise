@@ -116,3 +116,67 @@ describe('identifiants hors contexte sécurisé (téléphone en http://)', () =>
     }
   })
 })
+
+import { reviserSelonSens, selonSens } from './sm2'
+describe('cartes en sens inverse', () => {
+  const c0 = nouvelleCarte('a', null, 'Valeur énergétique d’1 g de lipides ?', '9 kcal', 0)
+  it('inverse recto et verso, avec un suivi neuf à réviser tout de suite', () => {
+    const v = selonSens({ ...c0, echeance: 1e15 }, 'inverse')
+    expect(v.recto).toBe('9 kcal')
+    expect(v.verso).toBe('Valeur énergétique d’1 g de lipides ?')
+    expect(v.echeance).toBe(0)
+  })
+  it('noter dans un sens ne touche pas l’autre', () => {
+    const n = reviserSelonSens(c0, 'normal', 'bien', 0)
+    const i = reviserSelonSens(n, 'inverse', 'encore', 0)
+    expect(i.intervalle).toBe(n.intervalle) // sens normal inchangé
+    expect(i.repetitions).toBe(1)
+    expect(i.inverse).toMatchObject({ repetitions: 0, oublis: 1 })
+    const j = reviserSelonSens(i, 'inverse', 'bien', 0)
+    expect(j.inverse?.intervalle).toBe(1)
+    expect(j.recto).toBe(c0.recto) // la carte stockée garde son sens d'origine
+  })
+})
+
+import { planifier, passagesNecessaires } from './plan'
+describe('plan de révision', () => {
+  const ch = (id: string, niveau: number | null) => ({ id, titre: id, niveau })
+  it('rien à planifier si l’examen est passé ou s’il n’y a aucun chapitre', () => {
+    expect(planifier([ch('a', null)], '2026-12-10', '2026-12-10')).toEqual([])
+    expect(planifier([], '2026-12-01', '2026-12-10')).toEqual([])
+  })
+  it('couvre chaque jour jusqu’à la veille, avec examen blanc la veille', () => {
+    const p = planifier([ch('a', null), ch('b', 0.9)], '2026-12-01', '2026-12-08')
+    expect(p.map((j) => j.date)).toEqual(['2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05', '2026-12-06', '2026-12-07'])
+    expect(p[6].seances[0].type).toBe('examen-blanc')
+  })
+  it('les faibles passent en premier, plus souvent, et jamais deux fois le même jour', () => {
+    const chapitres = [ch('fort', 0.9), ch('moyen', 0.6), ch('faible', 0.2), ch('neuf', null)]
+    const p = planifier(chapitres, '2026-12-01', '2026-12-15')
+    const toutes = p.flatMap((j) => j.seances).filter((s) => s.type !== 'examen-blanc')
+    const compte = (id: string) => toutes.filter((s) => s.pageId === id).length
+    expect([compte('neuf'), compte('faible'), compte('moyen'), compte('fort')]).toEqual([3, 3, 2, 1])
+    expect(toutes[0].pageId).toBe('neuf')
+    expect(toutes[0].type).toBe('apprendre')
+    for (const j of p) expect(new Set(j.seances.map((s) => s.pageId)).size).toBe(j.seances.length)
+    // espacement : les deux passages d'un chapitre ne sont pas le même jour
+    const jours = (id: string) => p.filter((j) => j.seances.some((s) => s.pageId === id)).map((j) => j.date)
+    expect(new Set(jours('neuf')).size).toBe(3)
+  })
+  it('avec peu de jours, tout tient quand même (charge augmentée)', () => {
+    const p = planifier([ch('a', null), ch('b', null), ch('c', null)], '2026-12-01', '2026-12-03')
+    expect(p.flatMap((j) => j.seances).filter((s) => s.type !== 'examen-blanc')).toHaveLength(9)
+    expect(p).toHaveLength(2)
+  })
+  it('étale les séances jusqu’à l’examen au lieu de les entasser au début', () => {
+    // 4 séances sur 9 jours de travail : la dernière doit tomber dans la seconde moitié
+    const p = planifier([ch('fort', 0.9), ch('moyen', 0.6)], '2026-12-01', '2026-12-11')
+    const avecSeance = p.slice(0, -1).map((j, i) => (j.seances.length ? i : -1)).filter((i) => i >= 0)
+    expect(avecSeance).toHaveLength(3)
+    expect(Math.max(...avecSeance)).toBeGreaterThanOrEqual(5)
+    expect(Math.max(...avecSeance) - Math.min(...avecSeance)).toBeGreaterThanOrEqual(4)
+  })
+  it('passages selon la maîtrise', () => {
+    expect([passagesNecessaires(null), passagesNecessaires(0.3), passagesNecessaires(0.7), passagesNecessaires(0.95)]).toEqual([3, 3, 2, 1])
+  })
+})

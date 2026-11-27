@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
 import { coursDe, descendantes } from '../lib/texte'
 import { pointsFaibles } from '../lib/maitrise'
 import { melanger } from '../lib/qualite'
+import { formaterDuree } from '../lib/minuteur'
 import { configIA, ErreurLLM, genererQcm } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
@@ -107,6 +108,8 @@ export function Qcm() {
         {erreur && <p className="erreur">{erreur}</p>}
       </div>
 
+      <ExamenBlanc onLancer={(id) => setEnCours({ qcmId: id })} />
+
       <h3>Mes QCM</h3>
       {!qcms.length && <p className="vide">Aucun QCM pour l’instant.</p>}
       <div className="liste-cartes">
@@ -136,6 +139,9 @@ export function Qcm() {
 
 function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
   const { enregistrerTentative, ajouterCartes } = useStore()
+  const examen = Boolean(qcm.dureeExamen)
+  const [debut] = useState(() => Date.now())
+  const [maintenant, setMaintenant] = useState(() => Date.now())
   const [i, setI] = useState(0)
   const [choix, setChoix] = useState<number | null>(null)
   const [reponses, setReponses] = useState<number[]>([])
@@ -148,17 +154,33 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
   const erreurs = reponses.map((r, k) => (r === qcm.questions[k].bonne ? -1 : k)).filter((k) => k >= 0)
   const score = reponses.length - erreurs.length
 
+  const finir = (toutes: number[]) => {
+    // Questions sans réponse (temps écoulé) : comptées fausses.
+    const completes = qcm.questions.map((_, k) => toutes[k] ?? -1)
+    const ratees = completes.map((r, k) => (r === qcm.questions[k].bonne ? -1 : k)).filter((k) => k >= 0)
+    setReponses(completes)
+    enregistrerTentative(qcm.id, { score: completes.length - ratees.length, total: qcm.questions.length, erreurs: ratees })
+    setTermine(true)
+  }
+
   const suivant = () => {
     const nouvelles = [...reponses, choix!]
     setReponses(nouvelles)
     setChoix(null)
     if (i + 1 < qcm.questions.length) setI(i + 1)
-    else {
-      const ratees = nouvelles.map((r, k) => (r === qcm.questions[k].bonne ? -1 : k)).filter((k) => k >= 0)
-      enregistrerTentative(qcm.id, { score: nouvelles.length - ratees.length, total: qcm.questions.length, erreurs: ratees })
-      setTermine(true)
-    }
+    else finir(nouvelles)
   }
+
+  // Chronomètre de l'examen blanc : à zéro, la copie est rendue telle quelle.
+  const restant = examen ? debut + qcm.dureeExamen! * 60_000 - maintenant : 0
+  useEffect(() => {
+    if (!examen || termine) return
+    const t = window.setInterval(() => setMaintenant(Date.now()), 500)
+    return () => window.clearInterval(t)
+  }, [examen, termine])
+  useEffect(() => {
+    if (examen && !termine && restant <= 0) finir(choix !== null ? [...reponses, choix] : reponses)
+  }, [restant]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (termine) {
     return (
@@ -202,6 +224,7 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
       <header className="vue-entete">
         <h1>{qcm.titre}</h1>
         <span className="aide">Question {i + 1} / {qcm.questions.length}</span>
+        {examen && <span className={'chrono' + (restant < 60_000 ? ' urgent' : '')}>{formaterDuree(restant)}</span>}
       </header>
       <div className="barre"><div style={{ width: `${(i / qcm.questions.length) * 100}%` }} /></div>
       <div className="panneau">
@@ -209,18 +232,25 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
         <div className="choix">
           {ordres[i].map((o, k) => {
             let classe = 'choix-item'
-            if (choix !== null) {
+            if (examen) {
+              if (o === choix) classe += ' selection'
+            } else if (choix !== null) {
               if (o === question.bonne) classe += ' juste'
               else if (o === choix) classe += ' faux'
             }
             return (
-              <button key={o} className={classe} disabled={choix !== null} onClick={() => setChoix(o)}>
+              <button key={o} className={classe} disabled={!examen && choix !== null} onClick={() => setChoix(o)}>
                 <span className="lettre">{String.fromCharCode(65 + k)}</span>{question.choix[o]}
               </button>
             )
           })}
         </div>
-        {choix !== null && (
+        {examen && choix !== null && (
+          <button className="bouton principal" onClick={suivant}>
+            {i + 1 < qcm.questions.length ? 'Suivant' : 'Rendre la copie'}
+          </button>
+        )}
+        {!examen && choix !== null && (
           <>
             <p className={choix === question.bonne ? 'succes' : 'erreur'}>
               {choix === question.bonne ? 'Bonne réponse !' : 'Raté.'} {question.explication}
@@ -243,5 +273,49 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
       </div>
       <button className="lien" onClick={onFin}>Abandonner</button>
     </section>
+  )
+}
+
+/** Examen blanc : tire des questions de tes QCM existants (aucun appel IA, donc gratuit), chronométré, corrigé à la fin. */
+function ExamenBlanc({ onLancer }: { onLancer: (qcmId: string) => void }) {
+  const { qcms, pages, ajouterQcm } = useStore()
+  const [pageId, setPageId] = useState<string | null>(null)
+  const [nombre, setNombre] = useState(20)
+  const [duree, setDuree] = useState(30)
+  const portee = pageId ? new Set(descendantes(pages, pageId).map((p) => p.id)) : null
+  const disponibles = useMemo(() => {
+    const vues = new Set<string>()
+    return qcms
+      .filter((q) => !q.dureeExamen && (portee === null || (q.pageId !== null && portee.has(q.pageId))))
+      .flatMap((q) => q.questions)
+      .filter((q) => { const k = q.enonce.toLowerCase(); if (vues.has(k)) return false; vues.add(k); return true })
+  }, [qcms, pageId, pages]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lancer = () => {
+    const tirees = melanger(disponibles).slice(0, nombre)
+    const titre = `Examen blanc — ${pageId ? pages.find((p) => p.id === pageId)?.titre || 'Cours' : 'toutes matières'}`
+    onLancer(ajouterQcm(titre, 'Examen blanc', pageId, tirees, duree))
+  }
+
+  return (
+    <div className="panneau">
+      <h3>Examen blanc</h3>
+      <p className="aide">Questions tirées au hasard de tes QCM déjà générés (aucun coût IA), chronométré, sans correction avant la fin.</p>
+      <SelecteurPage valeur={pageId} onChange={setPageId} vide="Toutes les matières" />
+      <div className="ligne">
+        <label>Questions
+          <input type="number" min={5} max={60} value={nombre} onChange={(e) => setNombre(Math.min(60, Math.max(5, Number(e.target.value) || 20)))} />
+        </label>
+        <label>Durée (min)
+          <input type="number" min={2} max={240} value={duree} onChange={(e) => setDuree(Math.min(240, Math.max(2, Number(e.target.value) || 30)))} />
+        </label>
+        <button className="bouton principal" disabled={disponibles.length < 5} onClick={lancer}>Commencer</button>
+      </div>
+      <p className="aide">
+        {disponibles.length < 5
+          ? `Seulement ${disponibles.length} question(s) disponible(s) ici : génère d’abord quelques QCM sur cette matière.`
+          : `${disponibles.length} question(s) disponibles${disponibles.length < nombre ? ` : l’examen en comptera ${disponibles.length}` : ''}.`}
+      </p>
+    </div>
   )
 }

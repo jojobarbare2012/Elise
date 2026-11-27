@@ -407,3 +407,20 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
   .tuiles { grid-template-columns: 1fr 1fr; }
   .ligne-maitrise { grid-template-columns: 1fr 60px; } .lm-barre { grid-column: 1 / -1; grid-row: 2; } .lm-detail { grid-row: 3; }
 }
+.mention-page.cassee { color: var(--ko); border-color: var(--ko); text-decoration: line-through; cursor: default; }
+
+/* ===== Plan de révision, examen blanc ===== */
+.plan { display: flex; flex-direction: column; gap: 14px; }
+.plan-titre { display: flex; align-items: center; gap: 8px; font: 600 15px var(--titre); letter-spacing: .06em; text-transform: uppercase; }
+.plan-titre .compte { margin-left: auto; }
+.plan-jour { display: flex; flex-direction: column; gap: 4px; padding-left: 6px; border-left: 1px solid var(--trait); }
+.seance { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 3px 0; }
+.seance input { accent-color: var(--accent); width: 16px; height: 16px; }
+.seance.faite .lien { text-decoration: line-through; color: var(--doux); }
+.badge-seance { font: 11px var(--mono); border: 1px solid var(--trait); padding: 0 6px; }
+.badge-seance.apprendre { color: var(--avert); border-color: var(--avert); }
+.badge-seance.revoir { color: var(--accent); border-color: var(--accent); }
+.badge-seance.examen-blanc { color: var(--ko); border-color: var(--ko); }
+.chrono { font: 400 22px var(--mono); color: var(--accent); text-shadow: var(--lueur); }
+.chrono.urgent { color: var(--ko); animation: clignote 1s ease-in-out infinite; }
+.choix-item.selection { border-color: var(--accent); background: rgba(var(--accent-rgb), .14); box-shadow: var(--lueur); }

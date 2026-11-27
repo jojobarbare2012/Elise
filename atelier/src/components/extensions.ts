@@ -2,6 +2,8 @@ import { Extension, type Editor, type Range } from '@tiptap/core'
 import Suggestion from '@tiptap/suggestion'
 import { PluginKey } from '@tiptap/pm/state'
 import Mention from '@tiptap/extension-mention'
+import { ReactNodeViewRenderer } from '@tiptap/react'
+import { MentionVue } from './MentionVue'
 import { rendreMenu, type ElementMenu } from './menuSuggestion'
 import type { Page } from '../lib/types'
 import { useStore } from '../lib/store'
@@ -58,7 +60,9 @@ export const CommandeSlash = Extension.create({
 
 /** Mentions « @ » : lien vers une autre page. `lirePages` renvoie les pages à jour. */
 export function mentionPages(lirePages: () => Page[]) {
-  return Mention.configure({
+  return Mention.extend({
+    addNodeView() { return ReactNodeViewRenderer(MentionVue) },
+  }).configure({
     HTMLAttributes: { class: 'mention-page' },
     renderHTML: ({ node, options }) => [
       'span',

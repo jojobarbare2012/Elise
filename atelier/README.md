@@ -38,6 +38,12 @@ npm test                                   # SM-2, extraction de texte, validati
 - **Maîtrise par chapitre** (module de l'accueil) : cartes maîtrisées (intervalle ≥ 21 jours), oubliées, score QCM.
 - **Coût** : chaque génération est estimée et cumulée (Réglages → Dépenses IA). Le cours est mis en cache côté API :
   QCM, cartes et relecture successifs sur le même chapitre paient l'entrée ~20x moins cher.
+- **Plan de révision** : pour chaque examen rattaché à une matière, séances réparties jusqu'à la veille (chapitres faibles
+  d'abord et plus souvent, examen blanc la veille), recalculées chaque jour selon la maîtrise ; séances à cocher.
+- **Examen blanc** : questions tirées des QCM existants (gratuit), chronométré, correction à la fin.
+- **Cartes en sens inversé** (réponse → question), avec un suivi de révision séparé. Liens « @ » toujours à jour.
+- **Téléphone** : tiroir de navigation, gestes sur les cartes (droite = Bien, gauche = À revoir), appli installable
+  (PWA, interface hors ligne) — installation possible seulement en HTTPS ou localhost (ex. `tailscale serve`).
 - **Ollama** (local, réglable dans Réglages) reste disponible ; son contexte limité tronque les cours longs (signalé).
 
 ## Données et IA (historique)

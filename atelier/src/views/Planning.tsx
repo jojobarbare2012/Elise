@@ -4,6 +4,7 @@ import { estDue } from '../lib/sm2'
 import { descendantes } from '../lib/texte'
 import { Minuteur, Histo } from '../components/widgets'
 import { GrilleModules, type DefModule } from '../components/GrilleModules'
+import { PlanRevision } from '../components/PlanRevision'
 import type { ModuleDispo } from '../lib/types'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
@@ -71,11 +72,13 @@ const DEFS: Record<string, DefModule> = {
   minuteur: { titre: 'Minuteur', icone: 'planning', rendu: () => <Minuteur /> },
   examens: { titre: 'Examens et échéances', icone: 'calendrier', rendu: () => <ContenuExamens /> },
   semaine: { titre: '7 derniers jours', icone: 'graphique', rendu: () => <Histo /> },
+  plan: { titre: 'Plan de révision', icone: 'cible', rendu: () => <PlanRevision /> },
 }
 const DEFAUT: ModuleDispo[] = [
   { id: 'minuteur', visible: true, taille: 1 },
   { id: 'examens', visible: true, taille: 2 },
   { id: 'semaine', visible: true, taille: 1 },
+  { id: 'plan', visible: true, taille: 2 },
 ]
 
 export function Planning() {

@@ -2,9 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { JSONContent } from '@tiptap/react'
 import type {
-  Accent, Carte, DepenseIA, Examen, NatureCarte, ModuleDispo, Page, Pane, TypePane, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
+  Accent, Carte, DepenseIA, Sens, Examen, NatureCarte, ModuleDispo, Page, Pane, TypePane, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
 } from './types'
-import { nouvelleCarte, reviser, type Note } from './sm2'
+import { nouvelleCarte, reviserSelonSens, type Note } from './sm2'
 import { descendantes } from './texte'
 import { iconeValide } from '../components/Icone'
 import { avecNouveau, deplacer, sans } from './espace'
@@ -33,11 +33,11 @@ interface Etat {
   ajouterCartes: (cartes: { recto: string; verso: string; nature?: NatureCarte }[], pageId: string | null) => number
   enregistrerDepense: (tache: string, cout: number) => void
   creerPageImportee: (titre: string, contenu: JSONContent, parentId: string | null) => string
-  noterCarte: (carteId: string, note: Note) => void
+  noterCarte: (carteId: string, note: Note, sens?: Sens) => void
   supprimerCarte: (carteId: string) => void
   supprimerCartes: (ids: string[]) => void
 
-  ajouterQcm: (titre: string, source: string, pageId: string | null, questions: Question[]) => string
+  ajouterQcm: (titre: string, source: string, pageId: string | null, questions: Question[], dureeExamen?: number) => string
   enregistrerTentative: (qcmId: string, tentative: Omit<Tentative, 'id' | 'date'>) => void
   supprimerQcm: (qcmId: string) => void
 
@@ -48,6 +48,7 @@ interface Etat {
 
   ajouterExamen: (e: Omit<Examen, 'id'>) => void
   supprimerExamen: (examenId: string) => void
+  basculerSeance: (examenId: string, cle: string) => void
 
   enregistrerSession: (minutes: number, pageId: string | null) => void
   majReglages: (r: Partial<Reglages>) => void
@@ -68,6 +69,7 @@ export const DISPOSITION_DEFAUT: ModuleDispo[] = [
   { id: 'horloge', visible: true, taille: 1 },
   { id: 'cartes', visible: true, taille: 1 },
   { id: 'taches', visible: true, taille: 1 },
+  { id: 'programme', visible: true, taille: 2 },
   { id: 'maitrise', visible: true, taille: 3 },
   { id: 'minuteur', visible: true, taille: 1 },
   { id: 'examens', visible: true, taille: 2 },
@@ -177,15 +179,15 @@ export const useStore = create<Etat>()(
         }))
         return nouveau
       },
-      noterCarte: (carteId, note) =>
-        set((s) => ({ cartes: s.cartes.map((c) => (c.id === carteId ? reviser(c, note) : c)) })),
+      noterCarte: (carteId, note, sens = 'normal') =>
+        set((s) => ({ cartes: s.cartes.map((c) => (c.id === carteId ? reviserSelonSens(c, sens, note) : c)) })),
       supprimerCarte: (carteId) => set((s) => ({ cartes: s.cartes.filter((c) => c.id !== carteId) })),
       supprimerCartes: (ids) => set((s) => ({ cartes: s.cartes.filter((c) => !ids.includes(c.id)) })),
 
-      ajouterQcm: (titre, source, pageId, questions) => {
+      ajouterQcm: (titre, source, pageId, questions, dureeExamen) => {
         const nouveau = id()
         set((s) => ({
-          qcms: [{ id: nouveau, titre, source, pageId, questions, creeLe: Date.now(), tentatives: [] }, ...s.qcms],
+          qcms: [{ id: nouveau, titre, source, pageId, questions, creeLe: Date.now(), tentatives: [], ...(dureeExamen ? { dureeExamen } : {}) }, ...s.qcms],
         }))
         return nouveau
       },
@@ -206,6 +208,17 @@ export const useStore = create<Etat>()(
 
       ajouterExamen: (e) => set((s) => ({ examens: [...s.examens, { ...e, id: id() }] })),
       supprimerExamen: (examenId) => set((s) => ({ examens: s.examens.filter((e) => e.id !== examenId) })),
+      basculerSeance: (examenId, cle) =>
+        set((s) => ({
+          examens: s.examens.map((e) => {
+            if (e.id !== examenId) return e
+            const faits = new Set(e.faits ?? [])
+            if (faits.has(cle)) faits.delete(cle)
+            else faits.add(cle)
+            // On ne garde que les 60 dernières coches.
+            return { ...e, faits: [...faits].slice(-60) }
+          }),
+        })),
 
       enregistrerSession: (minutes, pageId) =>
         set((s) => ({ sessions: [...s.sessions, { id: id(), date: Date.now(), minutes, pageId }] })),

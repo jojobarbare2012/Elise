@@ -6,6 +6,7 @@ import { Icone } from '../components/Icone'
 import { Histo, Minuteur } from '../components/widgets'
 import { useMinuteur } from '../lib/minuteur'
 import { maitriseParPage } from '../lib/maitrise'
+import { PlanRevision } from '../components/PlanRevision'
 import { GrilleModules, type DefModule } from '../components/GrilleModules'
 
 function Horloge() {
@@ -92,6 +93,7 @@ function useDefinitions(): Record<string, DefModule> {
       ),
     },
     semaine: { titre: 'Activité 7 jours', icone: 'graphique', rendu: () => <Histo /> },
+    programme: { titre: 'Au programme aujourd’hui', icone: 'calendrier', rendu: () => <PlanRevision compact /> },
     maitrise: {
       titre: 'Maîtrise par chapitre', icone: 'cible',
       voyant: () => (maitrise.some((m) => (m.niveau ?? 0) < 0.5) ? 'alerte' : 'ok'),

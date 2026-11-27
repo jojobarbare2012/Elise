@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
-import { estDue, libelleIntervalle, type Note } from '../lib/sm2'
+import { estDue, libelleIntervalle, selonSens, type Note } from '../lib/sm2'
+import type { Sens } from '../lib/types'
 import { cartesEcrites, coursDe, descendantes, texteDe } from '../lib/texte'
 import { configIA, coursTronque, genererCartes } from '../lib/llm'
 import { Icone } from '../components/Icone'
@@ -33,7 +34,12 @@ export function Cartes() {
     return cartes.filter((c) => c.pageId && ids.has(c.pageId))
   }, [cartes, pages, filtre])
 
-  const dues = useMemo(() => portee.filter((c) => estDue(c)).sort((a, b) => a.echeance - b.echeance), [portee])
+  const [sens, setSens] = useState<Sens>('normal')
+  // En sens inverse, chaque carte est vue « réponse → question » avec son propre suivi de révision.
+  const dues = useMemo(
+    () => portee.map((c) => selonSens(c, sens)).filter((c) => estDue(c)).sort((a, b) => a.echeance - b.echeance),
+    [portee, sens],
+  )
   const courante = dues[0]
 
   const importerDepuis = () => {
@@ -76,6 +82,12 @@ export function Cartes() {
           <button className={mode === 'gestion' ? 'actif' : ''} onClick={() => setMode('gestion')}>Gérer ({portee.length})</button>
         </div>
         <SelecteurPage valeur={filtre} onChange={(v) => { setFiltre(v); setRevele(false) }} vide="Toutes les matières" />
+        {mode === 'revision' && (
+          <div className="onglets" title="Sens de révision : chaque sens a son propre suivi">
+            <button className={sens === 'normal' ? 'actif' : ''} onClick={() => { setSens('normal'); setRevele(false) }}>Question → réponse</button>
+            <button className={sens === 'inverse' ? 'actif' : ''} onClick={() => { setSens('inverse'); setRevele(false) }}>Réponse → question</button>
+          </div>
+        )}
       </header>
 
       {mode === 'revision' ? (
@@ -91,8 +103,8 @@ export function Cartes() {
                 if (depart.current === null) return
                 depart.current = null
                 // Geste sur téléphone : glisser à droite = Bien, à gauche = À revoir.
-                if (glisse > 90) { noterCarte(courante.id, 'bien'); setRevele(false) }
-                else if (glisse < -90) { noterCarte(courante.id, 'encore'); setRevele(false) }
+                if (glisse > 90) { noterCarte(courante.id, 'bien', sens); setRevele(false) }
+                else if (glisse < -90) { noterCarte(courante.id, 'encore', sens); setRevele(false) }
                 setGlisse(0)
               }}
               onPointerCancel={() => { depart.current = null; setGlisse(0) }}
@@ -106,7 +118,7 @@ export function Cartes() {
               <div className="notes">
                 {NOTES.map((n) => (
                   <button key={n.note} className={'bouton note-' + n.note}
-                    onClick={() => { noterCarte(courante.id, n.note); setRevele(false) }}>
+                    onClick={() => { noterCarte(courante.id, n.note, sens); setRevele(false) }}>
                     {n.titre}<small>{libelleIntervalle(courante, n.note)}</small>
                   </button>
                 ))}
