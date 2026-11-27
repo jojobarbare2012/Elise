@@ -38,6 +38,21 @@ export function carteUtile(recto: string, verso: string): boolean {
   return repris / sigV.length < 0.75
 }
 
+const NATURES = new Set(['definition', 'valeur', 'fait'])
+
+/**
+ * Règle de Jonathan : une flashcard ne vise qu'une définition ou une donnée précise (valeur chiffrée comme un RNP,
+ * formule, nom). Réponse courte ; une « valeur » doit contenir un nombre.
+ */
+export function carteCiblee(nature: unknown, recto: string, verso: string): boolean {
+  if (typeof nature !== 'string' || !NATURES.has(nature)) return false
+  if (recto.trim().length > 220) return false
+  const limite = nature === 'definition' ? 320 : 200
+  if (verso.trim().length > limite) return false
+  if (nature === 'valeur' && !/\d/.test(verso)) return false
+  return true
+}
+
 /** Part des mots de `extrait` présents dans `cours` (0 à 1) : vérifie que la carte s'appuie bien sur le cours. */
 export function ancrage(extrait: string, cours: string): number {
   const mE = mots(extrait).filter((m) => m.length >= 3)
@@ -46,10 +61,14 @@ export function ancrage(extrait: string, cours: string): number {
   return mE.filter((m) => mC.has(m)).length / mE.length
 }
 
-/** Nombre maximal de cartes raisonnable pour un cours (on ne force jamais, c'est un plafond). */
+/**
+ * Nombre maximal de cartes pour un cours (un plafond, jamais un objectif). Les cartes ne visant que des définitions et
+ * des données précises, un contenu dense (tableau de valeurs, liste de définitions) peut en justifier beaucoup.
+ */
 export function plafondCartes(cours: string): number {
   const n = mots(cours).length
-  return Math.max(0, Math.min(15, Math.floor(n / 40)))
+  if (n < 12) return 0
+  return Math.max(1, Math.min(30, Math.floor(n / 15)))
 }
 
 /** Nombre maximal de questions que ce cours peut raisonnablement alimenter. */
@@ -62,8 +81,9 @@ const REFERENCES_AU_TEXTE = /\b(d'apres|selon|dans|suivant)\s+(le|ce|cet|la|cett
 const ECHAPPATOIRES = /\b(toutes?|aucune?s?)\s+(les|des)?\s*(reponses?|propositions?)\b|\btoutes? les (reponses?|propositions?) (ci-dessus|precedentes)\b|\bles deux (reponses|propositions)\b|\bautre[s]? reponse/
 
 export interface QuestionBrute {
-  enonce?: unknown; bonne_reponse?: unknown; distracteurs?: unknown; explication?: unknown
+  enonce?: unknown; bonne_reponse?: unknown; distracteurs?: unknown; explication?: unknown; pourquoi_faux?: unknown
 }
+type QuestionConstruite = { enonce: string; choix: string[]; bonne: number; explication: string; explicationsChoix: string[] }
 
 /**
  * Construit des questions sûres : mélange les 4 propositions dans le code (la bonne réponse n'est jamais « placée » par le modèle),
@@ -72,11 +92,11 @@ export interface QuestionBrute {
 export function construireQuestions(
   brutes: unknown,
   alea: Alea = Math.random,
-): { enonce: string; choix: string[]; bonne: number; explication: string }[] {
+): QuestionConstruite[] {
   const liste = (brutes as { questions?: unknown })?.questions
   if (!Array.isArray(liste)) return []
   const vues = new Set<string>()
-  const sortie: { enonce: string; choix: string[]; bonne: number; explication: string }[] = []
+  const sortie: QuestionConstruite[] = []
   for (const q of liste as QuestionBrute[]) {
     if (!q || typeof q.enonce !== 'string' || typeof q.bonne_reponse !== 'string' || !Array.isArray(q.distracteurs)) continue
     const enonce = q.enonce.trim()
@@ -85,20 +105,24 @@ export function construireQuestions(
     const norm = normaliser(enonce)
     if (REFERENCES_AU_TEXTE.test(norm) || vues.has(norm)) continue
     const deja = new Set([normaliser(bonne)])
-    const distracteurs: string[] = []
-    for (const d of q.distracteurs) {
-      if (typeof d !== 'string') continue
+    const pourquoi = Array.isArray(q.pourquoi_faux) ? q.pourquoi_faux : []
+    const distracteurs: { texte: string; pourquoi: string }[] = []
+    q.distracteurs.forEach((d, k) => {
+      if (typeof d !== 'string') return
       const t = d.trim(), n = normaliser(t)
-      if (!t || deja.has(n) || ECHAPPATOIRES.test(n)) continue
+      if (!t || deja.has(n) || ECHAPPATOIRES.test(n)) return
       deja.add(n)
-      distracteurs.push(t)
-    }
+      distracteurs.push({ texte: t, pourquoi: typeof pourquoi[k] === 'string' ? pourquoi[k].trim() : '' })
+    })
     if (ECHAPPATOIRES.test(normaliser(bonne)) || distracteurs.length < 2) continue
-    const choix = melanger([bonne, ...distracteurs.slice(0, 3)], alea)
+    // On mélange les paires (texte, explication) pour que chaque explication suive sa proposition.
+    const paires = melanger([{ texte: bonne, pourquoi: '' }, ...distracteurs.slice(0, 3)], alea)
+    const choix = paires.map((p) => p.texte)
     vues.add(norm)
     sortie.push({
       enonce, choix, bonne: choix.indexOf(bonne),
       explication: typeof q.explication === 'string' ? q.explication.trim() : '',
+      explicationsChoix: paires.map((p) => p.pourquoi),
     })
   }
   return sortie

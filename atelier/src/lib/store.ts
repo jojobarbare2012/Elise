@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { JSONContent } from '@tiptap/react'
 import type {
-  Accent, Carte, Examen, ModuleDispo, Page, Pane, TypePane, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
+  Accent, Carte, DepenseIA, Examen, NatureCarte, ModuleDispo, Page, Pane, TypePane, Qcm, Question, Reglages, SessionTravail, Statut, Tache, Tentative, Vue,
 } from './types'
 import { nouvelleCarte, reviser, type Note } from './sm2'
 import { descendantes } from './texte'
@@ -18,6 +18,7 @@ interface Etat {
   taches: Tache[]
   examens: Examen[]
   sessions: SessionTravail[]
+  depensesIA: DepenseIA[]
   reglages: Reglages
   dispositions: Record<string, ModuleDispo[]>
   espace: Pane[]
@@ -29,7 +30,9 @@ interface Etat {
   majContenu: (pageId: string, contenu: JSONContent) => void
   supprimerPage: (pageId: string) => void
 
-  ajouterCartes: (cartes: { recto: string; verso: string }[], pageId: string | null) => number
+  ajouterCartes: (cartes: { recto: string; verso: string; nature?: NatureCarte }[], pageId: string | null) => number
+  enregistrerDepense: (tache: string, cout: number) => void
+  creerPageImportee: (titre: string, contenu: JSONContent, parentId: string | null) => string
   noterCarte: (carteId: string, note: Note) => void
   supprimerCarte: (carteId: string) => void
   supprimerCartes: (ids: string[]) => void
@@ -65,6 +68,7 @@ export const DISPOSITION_DEFAUT: ModuleDispo[] = [
   { id: 'horloge', visible: true, taille: 1 },
   { id: 'cartes', visible: true, taille: 1 },
   { id: 'taches', visible: true, taille: 1 },
+  { id: 'maitrise', visible: true, taille: 3 },
   { id: 'minuteur', visible: true, taille: 1 },
   { id: 'examens', visible: true, taille: 2 },
   { id: 'qcm', visible: true, taille: 1 },
@@ -111,6 +115,7 @@ export const useStore = create<Etat>()(
       taches: [],
       examens: [],
       sessions: [],
+      depensesIA: [],
       reglages: REGLAGES_DEFAUT,
       dispositions: { accueil: DISPOSITION_DEFAUT },
       espace: [],
@@ -157,9 +162,20 @@ export const useStore = create<Etat>()(
         const existantes = new Set(get().cartes.map((c) => `${c.pageId}|${c.recto}`))
         const aAjouter = nouvelles
           .filter((c) => !existantes.has(`${pageId}|${c.recto}`))
-          .map((c) => nouvelleCarte(id(), pageId, c.recto, c.verso))
+          .map((c) => ({ ...nouvelleCarte(id(), pageId, c.recto, c.verso), ...(c.nature ? { nature: c.nature } : {}) }))
         set((s) => ({ cartes: [...s.cartes, ...aAjouter] }))
         return aAjouter.length
+      },
+      enregistrerDepense: (tache, cout) =>
+        set((s) => ({ depensesIA: [...s.depensesIA, { date: Date.now(), tache, cout }].slice(-2000) })),
+      creerPageImportee: (titre, contenu, parentId) => {
+        const nouveau = id()
+        const maintenant = Date.now()
+        set((s) => ({
+          pages: [...s.pages, { id: nouveau, parentId, titre, icone: 'livre', contenu, creeLe: maintenant, modifieLe: maintenant }],
+          vue: { type: 'page', pageId: nouveau },
+        }))
+        return nouveau
       },
       noterCarte: (carteId, note) =>
         set((s) => ({ cartes: s.cartes.map((c) => (c.id === carteId ? reviser(c, note) : c)) })),
@@ -215,8 +231,8 @@ export const useStore = create<Etat>()(
       majReglages: (r) => set((s) => ({ reglages: { ...s.reglages, ...r } })),
 
       exporter: () => {
-        const { pages, cartes, qcms, taches, examens, sessions, reglages, dispositions, espace } = get()
-        return JSON.stringify({ version: 3, pages, cartes, qcms, taches, examens, sessions, reglages, dispositions, espace }, null, 2)
+        const { pages, cartes, qcms, taches, examens, sessions, depensesIA, reglages, dispositions, espace } = get()
+        return JSON.stringify({ version: 3, pages, cartes, qcms, taches, examens, sessions, depensesIA, reglages, dispositions, espace }, null, 2)
       },
       importer: (json) => {
         const d = JSON.parse(json)
@@ -227,6 +243,7 @@ export const useStore = create<Etat>()(
           taches: d.taches ?? [],
           examens: d.examens ?? [],
           sessions: d.sessions ?? [],
+          depensesIA: d.depensesIA ?? [],
           reglages: { ...REGLAGES_DEFAUT, ...(d.reglages ?? {}) },
           pages: d.pages.map((p: Page) => ({ ...p, icone: iconeValide(p.icone) })),
           dispositions: d.dispositions ?? { accueil: d.disposition ?? DISPOSITION_DEFAUT },

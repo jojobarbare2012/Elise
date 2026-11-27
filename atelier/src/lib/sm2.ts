@@ -20,7 +20,7 @@ export function nouvelleCarte(
 export function reviser(carte: Carte, note: Note, maintenant = Date.now()): Carte {
   const q = QUALITE[note]
   if (q < 3) {
-    return { ...carte, repetitions: 0, intervalle: 0, echeance: maintenant + DIX_MINUTES }
+    return { ...carte, repetitions: 0, intervalle: 0, echeance: maintenant + DIX_MINUTES, oublis: (carte.oublis ?? 0) + 1 }
   }
   let intervalle: number
   if (carte.repetitions === 0) intervalle = 1

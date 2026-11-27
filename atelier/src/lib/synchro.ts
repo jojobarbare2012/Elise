@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { useStore } from './store'
 
 /** Les données qui vont sur le disque. Disposition, espace de travail et vue restent propres à chaque appareil. */
-export const CLES_DONNEES = ['pages', 'cartes', 'qcms', 'taches', 'examens', 'sessions', 'reglages'] as const
+export const CLES_DONNEES = ['pages', 'cartes', 'qcms', 'taches', 'examens', 'sessions', 'depensesIA', 'reglages'] as const
 type Cle = (typeof CLES_DONNEES)[number]
 
 export type Statut = 'init' | 'ok' | 'envoi' | 'hors-ligne' | 'conflit' | 'jeton' | 'local'
@@ -95,6 +95,7 @@ function adopter(donnees: Partial<Donnees>) {
     taches: donnees.taches ?? [],
     examens: donnees.examens ?? [],
     sessions: donnees.sessions ?? [],
+    depensesIA: donnees.depensesIA ?? [],
     reglages: { ...defauts, ...(donnees.reglages ?? {}) },
   })
   adoption = false

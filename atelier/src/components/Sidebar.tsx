@@ -5,6 +5,8 @@ import type { Page, Vue } from '../lib/types'
 import { Icone } from './Icone'
 import { formaterDuree, useMinuteur } from '../lib/minuteur'
 import { IndicateurDisque } from './BandeauSynchro'
+import { ImportCours } from './ImportCours'
+import { useState as useEtat } from 'react'
 
 function NoeudPage({ page, niveau }: { page: Page; niveau: number }) {
   const pages = useStore((s) => s.pages)
@@ -59,6 +61,7 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
   const creerPage = useStore((s) => s.creerPage)
   const racines = pages.filter((p) => p.parentId === null)
   const { actif, finLe, maintenant, phase } = useMinuteur()
+  const [importer, setImporter] = useEtat(false)
 
   return (
     <aside className="sidebar">
@@ -77,7 +80,10 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
       </nav>
       <div className="sidebar-section">
         <span>Pages & matières</span>
-        <button title="Nouvelle page" onClick={() => creerPage(null)}><Icone nom="plus" taille={15} /></button>
+        <span>
+          <button title="Importer un cours (PDF, photos)" onClick={() => setImporter(true)}><Icone nom="livre" taille={15} /></button>
+          <button title="Nouvelle page" onClick={() => creerPage(null)}><Icone nom="plus" taille={15} /></button>
+        </span>
       </div>
       <div className="arbre">
         {racines.map((p) => <NoeudPage key={p.id} page={p} niveau={0} />)}
@@ -90,6 +96,7 @@ export function Sidebar({ onRecherche, onReglages }: { onRecherche: () => void; 
           <span className="mono">{formaterDuree(finLe - maintenant)}</span>
         </button>
       )}
+      {importer && <ImportCours parentInitial={vue.type === 'page' ? vue.pageId : null} onFermer={() => setImporter(false)} />}
       <IndicateurDisque />
       <button className="nav-item reglages" onClick={onReglages}><Icone nom="reglages" /> Réglages et sauvegarde</button>
     </aside>

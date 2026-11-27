@@ -5,6 +5,7 @@ import { joursRestants } from './Planning'
 import { Icone } from '../components/Icone'
 import { Histo, Minuteur } from '../components/widgets'
 import { useMinuteur } from '../lib/minuteur'
+import { maitriseParPage } from '../lib/maitrise'
 import { GrilleModules, type DefModule } from '../components/GrilleModules'
 
 function Horloge() {
@@ -35,6 +36,7 @@ function useDefinitions(): Record<string, DefModule> {
   const prochains = examens.filter((e) => joursRestants(e.date) >= 0).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 4)
   const recentes = [...pages].sort((a, b) => b.modifieLe - a.modifieLe).slice(0, 6)
   const dernier = qcms.find((q) => q.tentatives.length)?.tentatives.at(-1)
+  const maitrise = maitriseParPage(pages, cartes, qcms)
 
   return {
     horloge: { titre: 'Horloge', icone: 'planning', rendu: () => <Horloge /> },
@@ -90,6 +92,31 @@ function useDefinitions(): Record<string, DefModule> {
       ),
     },
     semaine: { titre: 'Activité 7 jours', icone: 'graphique', rendu: () => <Histo /> },
+    maitrise: {
+      titre: 'Maîtrise par chapitre', icone: 'cible',
+      voyant: () => (maitrise.some((m) => (m.niveau ?? 0) < 0.5) ? 'alerte' : 'ok'),
+      rendu: () => (
+        <>
+          {!maitrise.length && <p className="vide">Révise des cartes ou passe des QCM : la maîtrise de chaque chapitre s’affichera ici.</p>}
+          {maitrise.slice(0, 8).map((m) => {
+            const pct = m.niveau === null ? 0 : Math.round(m.niveau * 100)
+            return (
+              <button key={m.page.id} className="ligne-maitrise" onClick={() => aller({ type: 'page', pageId: m.page.id })}>
+                <span className="lm-titre"><Icone nom={m.page.icone} taille={14} /> {m.page.titre || 'Sans titre'}</span>
+                <span className={'lm-barre' + (pct < 50 ? ' faible' : pct < 80 ? ' moyen' : '')}><span style={{ width: `${pct}%` }} /></span>
+                <span className="mono lm-pct">{pct} %</span>
+                <span className="aide lm-detail">
+                  {m.cartes > 0 && `${m.maitrisees}/${m.cartes} cartes maîtrisées`}
+                  {m.oubliees > 0 && ` · ${m.oubliees} oubliée(s)`}
+                  {m.qcmScore !== null && ` · QCM ${Math.round(m.qcmScore * 100)} %`}
+                </span>
+              </button>
+            )
+          })}
+          {maitrise.length > 8 && <p className="aide">… et {maitrise.length - 8} autre(s) chapitre(s), mieux maîtrisés.</p>}
+        </>
+      ),
+    },
   }
 }
 

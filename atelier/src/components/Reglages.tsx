@@ -9,6 +9,19 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
   const fichier = useRef<HTMLInputElement>(null)
   const [message, setMessage] = useState('')
   const synchro = useSynchro()
+  const depensesIA = useStore((s) => s.depensesIA)
+  const depenses = (() => {
+    const debut = new Date(); debut.setDate(1); debut.setHours(0, 0, 0, 0)
+    const mois = depensesIA.filter((d) => d.date >= debut.getTime())
+    const parTache = new Map<string, number>()
+    mois.forEach((d) => parTache.set(d.tache, (parTache.get(d.tache) ?? 0) + d.cout))
+    return {
+      total: depensesIA.reduce((n, d) => n + d.cout, 0),
+      mois: mois.reduce((n, d) => n + d.cout, 0),
+      nbMois: mois.length,
+      parTache: [...parTache.entries()].sort((a, b) => b[1] - a[1]),
+    }
+  })()
   const [iaEtat, setIaEtat] = useState<boolean | null>(null)
   useEffect(() => { void etatClaude().then(setIaEtat) }, [])
 
@@ -79,6 +92,15 @@ export function Reglages({ onFermer }: { onFermer: () => void }) {
             <button key={a} data-accent={a} className={'pastille' + (reglages.accent === a ? ' actif' : '')} title={a} onClick={() => majReglages({ accent: a })} />
           ))}
         </div>
+        {depenses.total > 0 && (
+          <>
+            <h3>Dépenses IA (estimation)</h3>
+            <p className="aide">
+              Ce mois-ci : <strong className="mono">{depenses.mois.toFixed(2)} $</strong> ({depenses.nbMois} génération(s)) · depuis le début : <span className="mono">{depenses.total.toFixed(2)} $</span>.
+              {depenses.parTache.length > 0 && <> Détail du mois : {depenses.parTache.map(([t, c]) => `${t} ${c.toFixed(2)} $`).join(' · ')}.</>}
+            </p>
+          </>
+        )}
         <h3>Stockage</h3>
         <p className="aide">
           {synchro.statut === 'local'

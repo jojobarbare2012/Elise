@@ -6,6 +6,8 @@ import { configIA, coursTronque, genererCartes } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 
+const LIBELLE_NATURE: Record<string, string> = { definition: 'Déf.', valeur: 'Valeur', fait: 'Fait', libre: '—' }
+
 const NOTES: { note: Note; titre: string }[] = [
   { note: 'encore', titre: 'À revoir' },
   { note: 'difficile', titre: 'Difficile' },
@@ -122,11 +124,11 @@ export function Cartes() {
             {info && <span className="aide">{info}</span>}
           </div>
           <table className="table">
-            <thead><tr><th>Recto</th><th>Verso</th><th>Prochaine</th><th /></tr></thead>
+            <thead><tr><th>Type</th><th>Recto</th><th>Verso</th><th>Prochaine</th><th /></tr></thead>
             <tbody>
               {portee.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.recto}</td><td>{c.verso}</td>
+                  <td><span className={'badge-nature ' + (c.nature ?? 'libre')}>{LIBELLE_NATURE[c.nature ?? 'libre']}</span></td><td>{c.recto}</td><td>{c.verso}</td>
                   <td>{estDue(c) ? 'maintenant' : new Date(c.echeance).toLocaleDateString('fr-FR')}</td>
                   <td><button className="icone-btn" onClick={() => supprimerCarte(c.id)}><Icone nom="corbeille" taille={15} /></button></td>
                 </tr>

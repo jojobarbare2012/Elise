@@ -29,6 +29,15 @@ npm test                                   # SM-2, extraction de texte, validati
   puis relancer `npm run dev` / `npm start`. Sortie structurée (JSON garanti conforme au schéma), effort `high` pour créer,
   `medium` pour relire ; en cas de refus du modèle, l'API relance automatiquement sur un modèle de repli (`fallbacks: "default"`).
   **Dépendance cloud** : le texte des cours utilisés part chez Anthropic, et chaque génération est facturée sur le compte de la clé.
+- **Import de cours** : PDF ou photos de pages → Claude transcrit le cours (titres, listes, tableaux, chiffres) dans une
+  nouvelle page (bouton livre de la barre latérale, ou « Importer un cours ici » dans une page). Claude uniquement.
+- **Flashcards ciblées** : uniquement des définitions, des valeurs chiffrées (RNP, valeurs normales, kcal/g…) ou des faits
+  précis (formule, nom d'enzyme). Contrôlé en code : une « valeur » doit contenir un nombre, réponses courtes.
+- **QCM** : « pourquoi les autres réponses sont fausses » pour chaque proposition ; source « Mes points faibles »
+  (questions ratées + cartes oubliées) que Claude réinterroge sous d'autres angles.
+- **Maîtrise par chapitre** (module de l'accueil) : cartes maîtrisées (intervalle ≥ 21 jours), oubliées, score QCM.
+- **Coût** : chaque génération est estimée et cumulée (Réglages → Dépenses IA). Le cours est mis en cache côté API :
+  QCM, cartes et relecture successifs sur le même chapitre paient l'entrée ~20x moins cher.
 - **Ollama** (local, réglable dans Réglages) reste disponible ; son contexte limité tronque les cours longs (signalé).
 
 ## Données et IA (historique)

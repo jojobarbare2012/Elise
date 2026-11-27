@@ -204,8 +204,9 @@ describe('flashcards : pertinence', () => {
   })
   it('le plafond suit la longueur du cours et ne force jamais', () => {
     expect(plafondCartes('Un cours très court.')).toBe(0)
-    expect(plafondCartes('mot '.repeat(200))).toBe(5)
-    expect(plafondCartes('mot '.repeat(5000))).toBe(15)
+    expect(plafondCartes('mot '.repeat(20))).toBe(1)
+    expect(plafondCartes('mot '.repeat(200))).toBe(13)
+    expect(plafondCartes('mot '.repeat(5000))).toBe(30)
     expect(plafondQuestions('mot '.repeat(60), 10)).toBe(2)
     expect(plafondQuestions('mot '.repeat(1000), 10)).toBe(10)
   })

@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../lib/store'
-import { coursDe } from '../lib/texte'
+import { coursDe, descendantes } from '../lib/texte'
+import { pointsFaibles } from '../lib/maitrise'
 import { melanger } from '../lib/qualite'
 import { configIA, ErreurLLM, genererQcm } from '../lib/llm'
 import { Icone } from '../components/Icone'
 import { SelecteurPage } from '../components/SelecteurSource'
 import type { Qcm as TypeQcm } from '../lib/types'
 
-type Source = 'cours' | 'libre'
+type Source = 'cours' | 'faibles' | 'libre'
 
 export function Qcm() {
-  const { qcms, pages, reglages, ajouterQcm, supprimerQcm } = useStore()
+  const { qcms, pages, cartes, reglages, ajouterQcm, supprimerQcm } = useStore()
   const [source, setSource] = useState<Source>('cours')
   const [pageId, setPageId] = useState<string | null>(null)
   const [sujet, setSujet] = useState('')
@@ -19,6 +20,9 @@ export function Qcm() {
   const [occupe, setOccupe] = useState(false)
   const [erreur, setErreur] = useState('')
   const [enCours, setEnCours] = useState<{ qcmId: string } | null>(null)
+
+  const portee = pageId ? new Set(descendantes(pages, pageId).map((p) => p.id)) : null
+  const faibles = useMemo(() => pointsFaibles(cartes, qcms, portee), [cartes, qcms, pageId, pages]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const lancer = enCours ? qcms.find((q) => q.id === enCours.qcmId) : undefined
   if (lancer) return <Passage qcm={lancer} onFin={() => setEnCours(null)} />
@@ -32,14 +36,22 @@ export function Qcm() {
       cours = coursDe(pages, pageId)
       if (cours.length < 80) return setErreur('Ce cours est trop court pour générer un QCM utile.')
       titre = pages.find((p) => p.id === pageId)?.titre || 'Cours'
+    } else if (source === 'faibles') {
+      if (!faibles.length) return setErreur('Aucun point faible repéré ici : passe des QCM et révise des cartes, les erreurs seront retenues.')
+      cours = pageId ? coursDe(pages, pageId) : undefined
+      titre = `Points faibles — ${pageId ? pages.find((p) => p.id === pageId)?.titre || 'Cours' : 'toutes matières'}`
     } else {
       if (!sujet.trim()) return setErreur('Indique un sujet.')
       titre = sujet.trim()
     }
     setOccupe(true)
     try {
-      const questions = await genererQcm({ ia: configIA(reglages), nombre, difficulte, cours, sujet: titre })
-      const id = ajouterQcm(`${titre} — ${difficulte}`, source === 'cours' ? 'Cours' : 'Sujet libre', source === 'cours' ? pageId : null, questions)
+      const questions = await genererQcm({
+        ia: configIA(reglages), nombre, difficulte, cours, sujet: titre,
+        pointsFaibles: source === 'faibles' ? faibles : undefined,
+      })
+      const libelleSource = source === 'cours' ? 'Cours' : source === 'faibles' ? 'Points faibles' : 'Sujet libre'
+      const id = ajouterQcm(source === 'faibles' ? titre : `${titre} — ${difficulte}`, libelleSource, source === 'libre' ? null : pageId, questions)
       setEnCours({ qcmId: id })
     } catch (e) {
       setErreur(e instanceof ErreurLLM ? e.message : 'Erreur inattendue pendant la génération.')
@@ -55,10 +67,26 @@ export function Qcm() {
         <h3>Générer un QCM</h3>
         <div className="onglets">
           <button className={source === 'cours' ? 'actif' : ''} onClick={() => setSource('cours')}>À partir de mes cours</button>
+          <button className={source === 'faibles' ? 'actif' : ''} onClick={() => setSource('faibles')}>Mes points faibles</button>
           <button className={source === 'libre' ? 'actif' : ''} onClick={() => setSource('libre')}>Sujet libre</button>
         </div>
         {source === 'cours' ? (
           <SelecteurPage valeur={pageId} onChange={setPageId} vide="Choisir une matière ou une page…" />
+        ) : source === 'faibles' ? (
+          <>
+            <SelecteurPage valeur={pageId} onChange={setPageId} vide="Toutes les matières" />
+            <p className="aide">
+              {faibles.length
+                ? `${faibles.length} notion(s) à retravailler : questions ratées lors de tes derniers QCM et cartes souvent oubliées. Claude les réinterroge sous d’autres angles.`
+                : 'Aucun point faible repéré pour l’instant dans cette portée.'}
+            </p>
+            {faibles.length > 0 && (
+              <ul className="liste-faibles">
+                {faibles.slice(0, 5).map((f, i) => <li key={i}>{f.notion}</li>)}
+                {faibles.length > 5 && <li className="aide">… et {faibles.length - 5} autre(s)</li>}
+              </ul>
+            )}
+          </>
         ) : (
           <>
             <input placeholder="Ex. Théorème de Bayes, la Révolution française…" value={sujet} onChange={(e) => setSujet(e.target.value)} />
@@ -146,6 +174,9 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
                   <div key={k} className="revue-q">
                     <strong>{qcm.questions[k].enonce}</strong>
                     <div className="bonne">Réponse : {qcm.questions[k].choix[qcm.questions[k].bonne]}</div>
+                    {qcm.questions[k].explicationsChoix?.[reponses[k]] && (
+                      <div className="aide">Ta réponse « {qcm.questions[k].choix[reponses[k]]} » : {qcm.questions[k].explicationsChoix![reponses[k]]}</div>
+                    )}
                     {qcm.questions[k].explication && <div className="aide">{qcm.questions[k].explication}</div>}
                   </div>
                 ))}
@@ -194,6 +225,16 @@ function Passage({ qcm, onFin }: { qcm: TypeQcm; onFin: () => void }) {
             <p className={choix === question.bonne ? 'succes' : 'erreur'}>
               {choix === question.bonne ? 'Bonne réponse !' : 'Raté.'} {question.explication}
             </p>
+            {question.explicationsChoix?.some((e) => e) && (
+              <details className="pourquoi" open={choix !== question.bonne}>
+                <summary>Pourquoi les autres réponses sont fausses</summary>
+                <ul>
+                  {ordres[i].filter((o) => o !== question.bonne && question.explicationsChoix?.[o]).map((o) => (
+                    <li key={o} className={o === choix ? 'choisie' : ''}><strong>{question.choix[o]}</strong> : {question.explicationsChoix![o]}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
             <button className="bouton principal" onClick={suivant}>
               {i + 1 < qcm.questions.length ? 'Suivant' : 'Voir le résultat'}
             </button>

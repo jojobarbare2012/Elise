@@ -19,13 +19,20 @@ export interface Carte {
   intervalle: number // jours
   repetitions: number
   echeance: number // timestamp ms
+  oublis?: number // nombre de « À revoir » : repère les points faibles
+  nature?: NatureCarte
 }
+
+/** Les flashcards ne portent que sur des définitions ou des données précises (valeurs chiffrées, formules, noms). */
+export type NatureCarte = 'definition' | 'valeur' | 'fait'
 
 export interface Question {
   enonce: string
   choix: string[]
   bonne: number // index dans choix
   explication: string
+  /** Pourquoi chaque proposition est fausse (alignée sur `choix`, vide pour la bonne). */
+  explicationsChoix?: string[]
 }
 
 export interface Tentative {
@@ -110,4 +117,11 @@ export interface Pane {
   type: TypePane
   pageId: string | null // utilisé par le type « page »
   poids: number
+}
+
+/** Une génération IA facturée (coût estimé en dollars). */
+export interface DepenseIA {
+  date: number
+  tache: string
+  cout: number
 }

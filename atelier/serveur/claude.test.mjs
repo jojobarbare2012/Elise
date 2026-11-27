@@ -54,7 +54,7 @@ describe('relais Claude', () => {
     expect(recu.corps).toMatchObject({
       model: 'claude-opus-5-5', max_tokens: 16000, fallbacks: 'default', system: 'Tu es prof.',
       output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
-      messages: [{ role: 'user', content: 'Cours…' }],
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'Cours…' }] }],
     })
     // Interdits sur Opus 5.5 : désactiver la réflexion, température, outil forcé
     expect(recu.corps.thinking).toBeUndefined()
@@ -98,5 +98,38 @@ describe('relais Claude', () => {
     reponseProgrammee = { statut: 200, json: message('{"questions":[]}') }
     await demander({ ...base, effort: 'turbo' })
     expect(recu.corps.output_config.effort).toBe('high')
+  })
+})
+
+import { coutEstime } from './claude.mjs'
+
+describe('relais Claude : cours en cache, pièces jointes, coût', () => {
+  it('place les pièces jointes puis le cours (mis en cache) puis la consigne', async () => {
+    reponseProgrammee = { statut: 200, json: { ...message('{"questions":[]}'), usage: { input_tokens: 1000, output_tokens: 2000, cache_read_input_tokens: 0, cache_creation_input_tokens: 5000 } } }
+    const r = await demander({ ...base, cours: 'Texte du cours', documents: [{ media_type: 'application/pdf', data: 'JVBERi0=' }, { media_type: 'image/png', data: 'iVBORw0=' }] })
+    expect(r.status).toBe(200)
+    const contenu = recu.corps.messages[0].content
+    expect(contenu.map((b) => b.type)).toEqual(['document', 'image', 'text', 'text'])
+    expect(contenu[0].source).toEqual({ type: 'base64', media_type: 'application/pdf', data: 'JVBERi0=' })
+    expect(contenu[2]).toEqual({ type: 'text', text: 'Texte du cours', cache_control: { type: 'ephemeral' } })
+    expect(contenu[3]).toEqual({ type: 'text', text: 'Cours…' })
+    // coût : 1000×4 + 2000×20 + 5000×5 = 69 000 / 1e6
+    expect((await r.json()).cout).toBeCloseTo(0.069, 6)
+  })
+  it('refuse les pièces jointes d’un type non autorisé ou mal encodées', async () => {
+    expect((await demander({ ...base, documents: [{ media_type: 'text/html', data: 'PGI+' }] })).status).toBe(400)
+    expect((await demander({ ...base, documents: [{ media_type: 'application/pdf', data: '<script>' }] })).status).toBe(400)
+    expect(recu).toBeNull()
+  })
+  it('mode long : max_tokens 64000 en streaming', async () => {
+    // la fausse API ne parle pas SSE : on vérifie seulement la requête envoyée
+    reponseProgrammee = { statut: 200, json: message('{"questions":[]}') }
+    await demander({ ...base, long: true })
+    expect(recu.corps.max_tokens).toBe(64000)
+    expect(recu.corps.stream).toBe(true)
+  })
+  it('calcule le coût, y compris la lecture de cache', () => {
+    expect(coutEstime('claude-opus-5-5', { input_tokens: 100, output_tokens: 1000, cache_read_input_tokens: 10000 })).toBeCloseTo((400 + 20000 + 2000) / 1e6, 9)
+    expect(coutEstime('modele-inconnu', { input_tokens: 1 })).toBeNull()
   })
 })

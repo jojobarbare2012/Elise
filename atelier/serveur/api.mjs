@@ -8,7 +8,7 @@ import { creerClaude } from './claude.mjs'
 
 const LIMITE_CORPS = 64 * 1024 * 1024
 const HOTES_LOCAUX = new Set(['localhost', '127.0.0.1', '::1', '[::1]'])
-const COLLECTIONS = ['pages', 'cartes', 'qcms', 'taches', 'examens', 'sessions']
+const COLLECTIONS = ['pages', 'cartes', 'qcms', 'taches', 'examens', 'sessions', 'depensesIA']
 
 export function donneesValides(d) {
   if (!d || typeof d !== 'object' || Array.isArray(d) || !Array.isArray(d.pages)) return false

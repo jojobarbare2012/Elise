@@ -344,3 +344,29 @@ h3 { margin: 22px 0 10px; font: 600 13px var(--titre); text-transform: uppercase
 .puce.ajout { border-style: dashed; color: var(--doux); }
 .deplacer { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .deplacer select { max-width: 200px; padding: 2px 6px; font-size: 13px; }
+
+/* ===== Import, maîtrise, points faibles, nature des cartes ===== */
+.depot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px; border: 1px dashed var(--trait-fort); background: var(--panneau2); color: var(--accent); cursor: pointer; text-align: center; }
+.depot:hover { box-shadow: var(--lueur); }
+.liste-fichiers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.liste-fichiers li { display: flex; gap: 10px; align-items: center; border-bottom: 1px solid rgba(var(--accent-rgb), .12); padding: 3px 0; }
+.liste-fichiers li span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ligne-maitrise { display: grid; grid-template-columns: minmax(140px, 1.2fr) 2fr 52px; grid-template-rows: auto auto; gap: 2px 12px; align-items: center; width: 100%; text-align: left; padding: 6px 0; border-bottom: 1px solid rgba(var(--accent-rgb), .12); }
+.ligne-maitrise:hover .lm-titre { color: var(--accent); }
+.lm-titre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-barre { height: 6px; background: rgba(var(--accent-rgb), .12); }
+.lm-barre span { display: block; height: 100%; background: var(--ok); box-shadow: 0 0 8px rgba(61, 255, 176, .5); }
+.lm-barre.moyen span { background: var(--avert); box-shadow: 0 0 8px rgba(255, 179, 64, .5); }
+.lm-barre.faible span { background: var(--ko); box-shadow: 0 0 8px rgba(255, 77, 106, .5); }
+.lm-pct { text-align: right; }
+.lm-detail { grid-column: 1 / -1; }
+.liste-faibles { margin: 0; padding-left: 18px; color: var(--doux); font-size: 13px; }
+.pourquoi { border-left: 2px solid var(--trait); padding: 4px 12px; }
+.pourquoi summary { cursor: pointer; color: var(--accent); font: 600 13px var(--titre); letter-spacing: .08em; text-transform: uppercase; }
+.pourquoi ul { margin: 8px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.pourquoi li.choisie { color: var(--ko); }
+.badge-nature { font: 11px var(--mono); border: 1px solid var(--trait); padding: 0 6px; color: var(--doux); white-space: nowrap; }
+.badge-nature.definition { color: var(--accent); border-color: var(--accent); }
+.badge-nature.valeur { color: var(--avert); border-color: var(--avert); }
+.badge-nature.fait { color: var(--ok); border-color: var(--ok); }
+.sidebar-section span { display: flex; gap: 6px; }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
@@ -12,6 +12,7 @@ import TableHeader from '@tiptap/extension-table-header'
 import { useStore } from '../lib/store'
 import { ancetres, descendantes, liensDe } from '../lib/texte'
 import { SelecteurPage } from './SelecteurSource'
+import { ImportCours } from './ImportCours'
 import { CommandeSlash, mentionPages } from './extensions'
 import type { Page } from '../lib/types'
 import { Icone, ICONES_PAGE } from './Icone'
@@ -23,6 +24,7 @@ export function PageEditeur({ page }: { page: Page }) {
   const aller = useStore((s) => s.aller)
   const ouvrirDansEspace = useStore((s) => s.ouvrirDansEspace)
   const creerPage = useStore((s) => s.creerPage)
+  const [importer, setImporter] = useState(false)
   const pages = useStore((s) => s.pages)
   const minuteur = useRef<number>()
 
@@ -124,6 +126,10 @@ export function PageEditeur({ page }: { page: Page }) {
         <button className="puce ajout" onClick={() => creerPage(page.id)}>
           <Icone nom="plus" taille={13} /> {sousPages.length ? 'Sous-page' : 'Ajouter une sous-page (chapitre…)'}
         </button>
+        <button className="puce ajout" onClick={() => setImporter(true)}>
+          <Icone nom="livre" taille={13} /> Importer un cours ici
+        </button>
+        {importer && <ImportCours parentInitial={page.id} onFermer={() => setImporter(false)} />}
         <span className="deplacer">
           <span className="etiquette">Dans</span>
           <SelecteurPage
